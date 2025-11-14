@@ -267,13 +267,13 @@ function handleUpdateClick(appointmentId) {
                 return;
             }
             
-            // If not in past, proceed with update
+            // If not in past, proceed with update - FIXED THIS PART:
             return fetch('/appointments/select', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
+                body: JSON.stringify({  // ✅ FIX: Use JSON.stringify() with object
                     appointment_id: appointmentId
                 }),
                 credentials: 'include'
@@ -284,6 +284,15 @@ function handleUpdateClick(appointmentId) {
     })
     .then(response => {
         if (!response) return; // If we returned early due to past date
+        
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            return response.text().then(html => {
+                console.error('Server returned HTML:', html.substring(0, 500));
+                throw new Error('Server returned HTML instead of JSON');
+            });
+        }
         return response.json();
     })
     .then(data => {
@@ -299,7 +308,6 @@ function handleUpdateClick(appointmentId) {
         alert('Error selecting appointment: ' + error.message);
     });
 }
-
 function handleDeleteClick(appointmentId) {
     if (!confirm('Are you sure you want to delete this appointment?')) {
         return;

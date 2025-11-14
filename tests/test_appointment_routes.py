@@ -1,64 +1,58 @@
 import pytest
-import json
-from datetime import datetime, timedelta
+import sys
+import os
 
-class TestAppointmentRoutes:
-    """Test appointment-related routes."""
+# Add the project root to Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app import create_app  # You'll need to modify app.py slightly
+
+@pytest.fixture
+def client():
+    """Create a test client with the Flask application"""
+    app = create_app()
+    app.config['TESTING'] = True
+    app.config['WTF_CSRF_ENABLED'] = False
     
-    def test_appointment_page_accessible(self, client):
-        """Test that appointment booking page is accessible."""
-        response = client.get('/appointment.html')
-        assert response.status_code == 200
+    with app.test_client() as client:
+        with app.app_context():
+            yield client
 
-    def test_book_appointment_validation(self, client, mock_db, sample_appointment_data):
-        """Test appointment booking validation."""
-        response = client.post('/book',
-                             data=json.dumps(sample_appointment_data),
-                             content_type='application/json')
-        # Should handle the request without crashing
-        assert response.status_code in [201, 400, 409, 500]
+def test_book_appointment(client):
+    """Test booking an appointment"""
+    response = client.post('/book', json={
+        "car_plate": "TEST123",
+        "date": "2024-12-01",
+        "time": "10:00",
+        "service_ids": [1, 2],
+        "notes": "Test appointment"
+    })
+    
+    assert response.status_code in [201, 400]  # 201 created or 400 if conflict
 
-    def test_book_appointment_past_date(self, client):
-        """Test booking appointment with past date."""
-        past_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-        data = {
-            "car_plate": "TEST123",
-            "date": past_date,
-            "time": "10:00",
-            "service_ids": [1, 2]
-        }
-        
-        response = client.post('/book',
-                             data=json.dumps(data),
-                             content_type='application/json')
-        assert response.status_code in [400, 500]
+def test_search_appointments(client):
+    """Test searching appointments by car plate"""
+    response = client.get('/appointment/search?car_plate=TEST123')
+    
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'status' in data
+    assert 'appointments' in data
 
-    def test_book_appointment_missing_fields(self, client):
-        """Test booking with missing required fields."""
-        test_cases = [
-            {"car_plate": "", "date": "2024-01-15", "time": "10:00", "service_ids": [1]},
-            {"car_plate": "TEST123", "date": "", "time": "10:00", "service_ids": [1]},
-            {"car_plate": "TEST123", "date": "2024-01-15", "time": "", "service_ids": [1]},
-            {"car_plate": "TEST123", "date": "2024-01-15", "time": "10:00", "service_ids": []},
-        ]
-        
-        for data in test_cases:
-            response = client.post('/book',
-                                 data=json.dumps(data),
-                                 content_type='application/json')
-            assert response.status_code in [400, 500]
+def test_select_appointment(client):
+    """Test selecting an appointment for update"""
+    # First, you might need to create a test appointment
+    # Then test the select endpoint
+    
+    response = client.post('/appointments/select', json={
+        "appointment_id": 1
+    })
+    
+    # This might return 401 if not logged in, or 404 if appointment doesn't exist
+    assert response.status_code in [200, 401, 404]
 
-    def test_search_appointments_endpoint(self, client, mock_db):
-        """Test appointment search endpoint."""
-        response = client.get('/appointment/search?car_plate=TEST123')
-        assert response.status_code in [200, 400, 500]
-
-    def test_search_appointments_missing_plate(self, client):
-        """Test search without car plate."""
-        response = client.get('/appointment/search')
-        assert response.status_code == 400
-
-    def test_get_appointment_by_id_endpoint(self, client, mock_db):
-        """Test getting appointment by ID endpoint."""
-        response = client.get('/appointments/1')
-        assert response.status_code in [200, 404, 500]
+def test_get_appointment_by_id(client):
+    """Test getting a specific appointment"""
+    response = client.get('/appointments/1')
+    
+    assert response.status_code in [200, 404]

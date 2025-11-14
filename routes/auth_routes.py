@@ -1,12 +1,21 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, redirect, render_template
 from werkzeug.security import check_password_hash, generate_password_hash
 from mysql.connector import Error
-from typing import Optional
-
 from utils.database import get_connection, _safe_close
+from utils.helpers import serialize
 
 auth_bp = Blueprint('auth', __name__)
 
+# Template routes
+@auth_bp.route("/login.html")
+def login_page():
+    return render_template("login.html")
+
+@auth_bp.route("/signup.html")
+def signup_page():
+    return render_template("signup.html")
+
+# Authentication routes
 @auth_bp.route("/signup", methods=["POST"])
 def signup():
     data = request.get_json() or {}

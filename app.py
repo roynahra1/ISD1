@@ -1,14 +1,18 @@
+import os
 from flask import Flask
 from flask_cors import CORS
-import os
 
 def create_app():
     app = Flask(__name__)
     
-    # Load configuration
-    app.config.from_pyfile('config.py')
-    
-    # CORS configuration
+    # Configuration
+    app.secret_key = os.getenv("APP_SECRET_KEY", os.urandom(24))
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=False
+    )
+
     CORS(app, supports_credentials=True, resources={
         r"/*": {
             "origins": "*",
@@ -18,19 +22,18 @@ def create_app():
             "supports_credentials": True
         }
     })
-    
-    # Register blueprints
+
+    # Import and register blueprints
     from routes.auth_routes import auth_bp
     from routes.appointment_routes import appointment_bp
-    from routes.template_routes import template_bp
-    
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(appointment_bp)
-    app.register_blueprint(template_bp)
     
     return app
 
+app = create_app()
+
 if __name__ == "__main__":
-    app = create_app()
     print("Server starting on http://localhost:5000")
     app.run(debug=True, host='0.0.0.0', port=5000)
