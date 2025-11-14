@@ -1,25 +1,23 @@
-name: Python CI with Codecov
+name: Python Tests with Codecov
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.8, 3.9, '3.10']
-
-    steps:
-    - uses: actions/checkout@v4
     
-    - name: Set up Python ${{ matrix.python-version }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.9'
     
     - name: Install dependencies
       run: |
@@ -27,12 +25,11 @@ jobs:
         pip install -r requirements.txt
         pip install pytest pytest-cov
     
-    - name: Test with pytest
+    - name: Run tests with coverage
       run: |
-        pytest --cov=./ --cov-report=xml -v
+        pytest --cov=./ --cov-report=xml --cov-report=html -v
     
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
       with:
-        file: ./coverage.xml
-        flags: unittests,python${{ matrix.python-version }}
+        token: ${{ secrets.CODECOV_TOKEN }}
