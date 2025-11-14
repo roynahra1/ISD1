@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from werkzeug.security import check_password_hash, generate_password_hash
 from mysql.connector import Error
+from typing import Optional
 
 from utils.database import get_connection, _safe_close
 

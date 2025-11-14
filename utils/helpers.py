@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Union, Optional
 
 def serialize(val: Any) -> Any:
     if isinstance(val, (datetime, timedelta)):
         return str(val)
     return val
 
-def verify_password(stored_hash: str | None, supplied: str) -> bool:
+def verify_password(stored_hash: Optional[str], supplied: str) -> bool:
     """Verify password using Werkzeug's check_password_hash"""
     if not stored_hash:
         return False

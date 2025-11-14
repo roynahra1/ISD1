@@ -15,6 +15,7 @@ class TestAppointmentRoutes:
         response = client.post('/book',
                              data=json.dumps(sample_appointment_data),
                              content_type='application/json')
+        # Should handle the request without crashing
         assert response.status_code in [201, 400, 409, 500]
 
     def test_book_appointment_past_date(self, client):

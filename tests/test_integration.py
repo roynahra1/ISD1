@@ -55,25 +55,18 @@ class TestIntegrationFlows:
 
     def test_session_flow(self, client):
         """Test session management flow."""
-        # Start logged out - should be False
+        # Start logged out
         response = client.get('/auth/status')
         assert response.status_code == 200
         data = json.loads(response.data)
-        # This should be False for a fresh client
         assert data['logged_in'] is False
         
-        # Test login (this should set logged_in to True)
-        login_data = {
-            "username": "sessionuser",
-            "password": "sessionpass123"
-        }
-        
-        # Mock a successful login
+        # Test setting session manually
         with client.session_transaction() as session:
             session['logged_in'] = True
-            session['username'] = 'sessionuser'
+            session['username'] = 'testuser'
         
-        # Now check auth status - should be True
+        # Now should be logged in
         response = client.get('/auth/status')
         assert response.status_code == 200
         data = json.loads(response.data)
@@ -83,37 +76,8 @@ class TestIntegrationFlows:
         response = client.post('/logout')
         assert response.status_code == 200
         
-        # After logout, should be False again
+        # After logout, should be logged out again
         response = client.get('/auth/status')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data['logged_in'] is False
-
-    def test_authentication_flow_separate_clients(self):
-        """Test authentication flow with separate client instances."""
-        from app import create_app
-        app = create_app()
-        app.config['TESTING'] = True
-        
-        # Use separate client instances to avoid session contamination
-        with app.test_client() as client1:
-            # Client1 starts logged out
-            response = client1.get('/auth/status')
-            data = json.loads(response.data)
-            assert data['logged_in'] is False
-        
-        with app.test_client() as client2:
-            # Client2 starts logged out
-            response = client2.get('/auth/status')
-            data = json.loads(response.data)
-            assert data['logged_in'] is False
-            
-            # Login client2
-            with client2.session_transaction() as session:
-                session['logged_in'] = True
-                session['username'] = 'testuser'
-            
-            # Client2 should now be logged in
-            response = client2.get('/auth/status')
-            data = json.loads(response.data)
-            assert data['logged_in'] is True

@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from datetime import datetime
 from mysql.connector import Error
+from typing import Any
 
 from utils.database import get_connection, _safe_close
 from utils.helpers import serialize
