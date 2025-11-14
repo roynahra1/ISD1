@@ -19,14 +19,14 @@ We maintain high test coverage to ensure code quality and reliability.
 
 | Type | Badge | Description |
 |------|-------|-------------|
-| **Overall** | [![codecov](https://codecov.io/gh/username/repo/branch/main/graph/badge.svg)](https://codecov.io/gh/username/repo) | Total test coverage percentage |
-| **Trend** | [![Coverage Trend](https://codecov.io/gh/username/repo/branch/main/graphs/tree.svg)](https://codecov.io/gh/username/repo) | Coverage trend over time |
-| **Sunburst** | [![Sunburst](https://codecov.io/gh/username/repo/branch/main/sunburst.svg)](https://codecov.io/gh/username/repo) | Visual coverage breakdown |
+| **Overall** | [![codecov](https://codecov.io/roynahra1/ISD1/branch/main/graph/badge.svg)](https://codecov.io/gh/roynahra1/ISD1) | Total test coverage percentage |
+| **Trend** | [![Coverage Trend](https://codecov.io/gh/roynahra1/ISD1/branch/main/graphs/tree.svg)](https://codecov.io/gh/roynahra1/ISD1) | Coverage trend over time |
+| **Sunburst** | [![Sunburst](https://codecov.io/gh/roynahra1/ISD1/branch/main/sunburst.svg)](https://codecov.io/gh/roynahra1/ISD1) | Visual coverage breakdown |
 
 ### Quick Links
-- 📊 [**Detailed Coverage Report**](https://codecov.io/gh/username/repo)
-- 📈 [**Coverage History**](https://codecov.io/gh/username/repo/graphs)
-- 🔍 [**File Coverage**](https://codecov.io/gh/username/repo/tree/main)
+- 📊 [**Detailed Coverage Report**](https://codecov.io/gh/roynahra1/ISD1)
+- 📈 [**Coverage History**](https://codecov.io/gh/roynahra1/ISD1/graphs)
+- 🔍 [**File Coverage**](https://codecov.io/gh/roynahra1/ISD1/tree/main)
 
 ### Coverage Goals
 - 🎯 **Target**: 90% overall coverage
