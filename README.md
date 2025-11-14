@@ -11,14 +11,5 @@ A modern Flask-based appointment management system with authentication, booking 
 - 🧪 Comprehensive test suite
 - 🔄 CI/CD pipeline
 
-## Quick Start
+- [![codecov](https://codecov.io/gh/your-username/your-repo/branch/main/graph/badge.svg)](https://codecov.io/gh/your-username/your-repo)
 
-```bash
-# 1. Install dependencies
-pip install -r requirements.txt
-
-# 2. Set up database
-python setup_database.py
-
-# 3. Run application
-python run.py
