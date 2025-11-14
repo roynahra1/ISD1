@@ -1,10 +1,12 @@
-from flask import Blueprint, request, jsonify, session, redirect, render_template
+from flask import Blueprint, request, jsonify, session, render_template
 from werkzeug.security import check_password_hash, generate_password_hash
 from mysql.connector import Error
+import logging
 from utils.database import get_connection, _safe_close
 from utils.helpers import serialize
 
 auth_bp = Blueprint('auth', __name__)
+logger = logging.getLogger(__name__)
 
 # Template routes
 @auth_bp.route("/login.html")
@@ -52,9 +54,15 @@ def signup():
         return jsonify({"status": "success", "message": "Account created"}), 201
 
     except Error as err:
+        logger.error(f"Database error in signup: {err}")
         if conn:
             conn.rollback()
-        return jsonify({"status": "error", "message": str(err)}), 500
+        return jsonify({"status": "error", "message": f"Database error: {str(err)}"}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in signup: {e}")
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
     finally:
         _safe_close(cursor, conn)
 
@@ -86,19 +94,31 @@ def login():
         return jsonify({"status": "error", "message": "Invalid username or password"}), 401
 
     except Error as err:
-        return jsonify({"status": "error", "message": str(err)}), 500
+        logger.error(f"Database error in login: {err}")
+        return jsonify({"status": "error", "message": f"Database error: {str(err)}"}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in login: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
     finally:
         _safe_close(cursor, conn)
 
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
-    session.clear()
-    return jsonify({"status": "success", "message": "Logged out"}), 200
+    try:
+        session.clear()
+        return jsonify({"status": "success", "message": "Logged out"}), 200
+    except Exception as e:
+        logger.error(f"Error in logout: {e}")
+        return jsonify({"status": "error", "message": "Logout failed"}), 500
 
 @auth_bp.route("/auth/status", methods=["GET"])
 def auth_status():
-    return jsonify({
-        "status": "success",
-        "logged_in": bool(session.get("logged_in")),
-        "username": session.get("username")
-    })
+    try:
+        return jsonify({
+            "status": "success",
+            "logged_in": bool(session.get("logged_in")),
+            "username": session.get("username")
+        })
+    except Exception as e:
+        logger.error(f"Error in auth_status: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500

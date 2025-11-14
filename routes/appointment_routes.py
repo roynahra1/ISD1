@@ -1,10 +1,12 @@
 from flask import Blueprint, request, jsonify, session, redirect, render_template
 from datetime import datetime
 from mysql.connector import Error
+import logging
 from utils.database import get_connection, _safe_close
 from utils.helpers import serialize
 
 appointment_bp = Blueprint('appointments', __name__)
+logger = logging.getLogger(__name__)
 
 # Template routes
 @appointment_bp.route("/appointment.html")
@@ -91,9 +93,15 @@ def book_appointment():
             {"status": "success", "message": f"Appointment booked for {car_plate} on {date} at {time}", "appointment_id": appointment_id}
         ), 201
     except Error as err:
+        logger.error(f"Database error in book_appointment: {err}")
         if conn:
             conn.rollback()
-        return jsonify({"status": "error", "message": str(err)}), 500
+        return jsonify({"status": "error", "message": f"Database error: {str(err)}"}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in book_appointment: {e}")
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
     finally:
         _safe_close(cursor, conn)
 
@@ -127,7 +135,11 @@ def search_appointments_by_plate():
                 appt[k] = serialize(v)
         return jsonify({"status": "success", "appointments": appointments}), 200
     except Error as err:
-        return jsonify({"status": "error", "message": str(err)}), 500
+        logger.error(f"Database error in search_appointments_by_plate: {err}")
+        return jsonify({"status": "error", "message": f"Database error: {str(err)}"}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in search_appointments_by_plate: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
     finally:
         _safe_close(cursor, conn)
 
@@ -157,18 +169,18 @@ def get_appointment_by_id(appointment_id: int):
             appointment[k] = serialize(v)
         return jsonify({"status": "success", "appointment": appointment}), 200
     except Error as err:
-        return jsonify({"status": "error", "message": str(err)}), 500
+        logger.error(f"Database error in get_appointment_by_id: {err}")
+        return jsonify({"status": "error", "message": f"Database error: {str(err)}"}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in get_appointment_by_id: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
     finally:
         _safe_close(cursor, conn)
 
 @appointment_bp.route("/appointments/select", methods=["POST"])
 def select_appointment():
-    # Check login status first
     if not session.get("logged_in"):
-        return jsonify({
-            "status": "error",
-            "message": "Please login first"
-        }), 401
+        return jsonify({"status": "error", "message": "Please login first"}), 401
 
     data = request.get_json() or {}
     appointment_id = data.get("appointment_id")
@@ -197,17 +209,17 @@ def select_appointment():
         if not appointment:
             return jsonify({"status": "error", "message": "Appointment not found"}), 404
 
-        # Store in session
         session['selected_appointment_id'] = appointment_id
         session['selected_appointment'] = {k: serialize(v) for k, v in appointment.items()}
         
-        return jsonify({
-            "status": "success",
-            "message": "Appointment selected"
-        }), 200
+        return jsonify({"status": "success", "message": "Appointment selected"}), 200
 
+    except Error as err:
+        logger.error(f"Database error in select_appointment: {err}")
+        return jsonify({"status": "error", "message": f"Database error: {str(err)}"}), 500
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        logger.error(f"Unexpected error in select_appointment: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
     finally:
         _safe_close(cursor, conn)
 
@@ -220,17 +232,13 @@ def get_current_appointment():
     if not appointment:
         return jsonify({"status": "error", "message": "No appointment selected"}), 404
         
-    return jsonify({
-        "status": "success",
-        "appointment": appointment
-    })
+    return jsonify({"status": "success", "appointment": appointment})
 
 @appointment_bp.route("/appointments/update", methods=["PUT"])
 def update_selected_appointment():
     if not session.get("logged_in"):
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
 
-    # Get appointment ID from session
     appointment_id = session.get("selected_appointment_id")
     if not appointment_id:
         return jsonify({"status": "error", "message": "No appointment selected"}), 400
@@ -239,7 +247,6 @@ def update_selected_appointment():
     date = data.get("date")
     time = data.get("time")
     
-    # Validate date/time not in past
     try:
         date_time_str = f"{date} {time}"
         appointment_datetime = datetime.strptime(date_time_str, "%Y-%m-%d %H:%M")
@@ -249,10 +256,7 @@ def update_selected_appointment():
                 "message": "Cannot set appointment date/time in the past"
             }), 400
     except ValueError:
-        return jsonify({
-            "status": "error",
-            "message": "Invalid date/time format"
-        }), 400
+        return jsonify({"status": "error", "message": "Invalid date/time format"}), 400
 
     notes = data.get("notes", "")
     service_ids = data.get("service_ids", [])
@@ -260,7 +264,6 @@ def update_selected_appointment():
     if not date or not time:
         return jsonify({"status": "error", "message": "Missing date or time"}), 400
 
-    # validate date/time format
     try:
         datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
     except ValueError:
@@ -276,13 +279,11 @@ def update_selected_appointment():
         cursor = conn.cursor()
         conn.start_transaction()
 
-        # ensure appointment exists
         cursor.execute("SELECT 1 FROM appointment WHERE Appointment_id = %s", (appointment_id,))
         if not cursor.fetchone():
             conn.rollback()
             return jsonify({"status": "error", "message": "Appointment not found"}), 404
 
-        # check for time conflict (exclude current appointment)
         cursor.execute(
             "SELECT COUNT(*) FROM appointment WHERE Date = %s AND Time = %s AND Appointment_id != %s",
             (date, time, appointment_id),
@@ -291,13 +292,11 @@ def update_selected_appointment():
             conn.rollback()
             return jsonify({"status": "error", "message": "Time slot already booked"}), 409
 
-        # update appointment
         cursor.execute(
             "UPDATE appointment SET Date = %s, Time = %s, Notes = %s WHERE Appointment_id = %s",
             (date, time, notes, appointment_id),
         )
 
-        # replace services: delete existing then insert provided ones (validate ids)
         cursor.execute("DELETE FROM appointment_service WHERE Appointment_id = %s", (appointment_id,))
         if service_ids:
             cursor.execute("SELECT Service_ID FROM service")
@@ -314,7 +313,6 @@ def update_selected_appointment():
 
         conn.commit()
 
-        # fetch updated appointment
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
             """
@@ -337,9 +335,15 @@ def update_selected_appointment():
         return jsonify({"status": "success", "message": "Appointment updated", "appointment": updated}), 200
 
     except Error as err:
+        logger.error(f"Database error in update_selected_appointment: {err}")
         if conn:
             conn.rollback()
-        return jsonify({"status": "error", "message": str(err)}), 500
+        return jsonify({"status": "error", "message": f"Database error: {str(err)}"}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in update_selected_appointment: {e}")
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
     finally:
         _safe_close(cursor, conn)
 
@@ -358,8 +362,14 @@ def delete_appointment(appointment_id: int):
         conn.commit()
         return jsonify({"status": "success", "message": "Appointment deleted"}), 200
     except Error as err:
+        logger.error(f"Database error in delete_appointment: {err}")
         if conn:
             conn.rollback()
-        return jsonify({"status": "error", "message": str(err)}), 500
+        return jsonify({"status": "error", "message": f"Database error: {str(err)}"}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in delete_appointment: {e}")
+        if conn:
+            conn.rollback()
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
     finally:
         _safe_close(cursor, conn)

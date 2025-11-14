@@ -1,36 +1,27 @@
 import pytest
+import mysql.connector
 import os
 import sys
-import mysql.connector
 
-# Add project root to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-@pytest.fixture(autouse=True)
-def setup_test_environment():
-    """Setup test environment before each test"""
-    # Use test database
-    os.environ['TESTING'] = 'True'
-    os.environ['DB_NAME'] = 'isd_test'
-    yield
-    # Cleanup
-    if 'TESTING' in os.environ:
-        del os.environ['TESTING']
+from utils.database import get_db_config
 
 def setup_test_database():
     """Setup test database with required tables"""
+    config = get_db_config()
+    
+    # Connect without specifying database to create it
+    config_no_db = config.copy()
+    config_no_db.pop('database', None)
+    
+    conn = mysql.connector.connect(**config_no_db)
+    cursor = conn.cursor()
+    
     try:
-        # Connect without specifying database to create it
-        conn = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password=""
-        )
-        cursor = conn.cursor()
-        
         # Create test database if it doesn't exist
-        cursor.execute("CREATE DATABASE IF NOT EXISTS isd_test")
-        cursor.execute("USE isd_test")
+        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {config['database']}")
+        cursor.execute(f"USE {config['database']}")
         
         # Create minimal tables for testing
         cursor.execute("""
@@ -90,16 +81,14 @@ def setup_test_database():
         
     except Exception as e:
         print(f"Error setting up test database: {e}")
-        if conn:
-            conn.rollback()
+        conn.rollback()
     finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+        cursor.close()
+        conn.close()
 
 @pytest.fixture(scope="session", autouse=True)
-def initialize_test_database():
-    """Initialize test database before running tests"""
+def setup_database():
+    """Setup test database before running tests"""
     setup_test_database()
     yield
+    # Optional: cleanup after tests
