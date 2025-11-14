@@ -43,10 +43,7 @@ def signup():
 
     except Error as err:
         if conn:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
+            conn.rollback()
         return jsonify({"status": "error", "message": str(err)}), 500
     finally:
         _safe_close(cursor, conn)

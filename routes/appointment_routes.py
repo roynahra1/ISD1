@@ -75,10 +75,7 @@ def book_appointment():
         ), 201
     except Error as err:
         if conn:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
+            conn.rollback()
         return jsonify({"status": "error", "message": str(err)}), 500
     finally:
         _safe_close(cursor, conn)
@@ -117,4 +114,32 @@ def search_appointments_by_plate():
     finally:
         _safe_close(cursor, conn)
 
-# Add other appointment routes as needed...
+@appointment_bp.route("/appointments/<int:appointment_id>", methods=["GET"])
+def get_appointment_by_id(appointment_id: int):
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            """
+            SELECT a.Appointment_id, a.Date, a.Time, a.Notes, a.Car_plate,
+                   GROUP_CONCAT(s.Service_Type) AS Services
+            FROM appointment a
+            LEFT JOIN appointment_service aps ON a.Appointment_id = aps.Appointment_id
+            LEFT JOIN service s ON aps.Service_ID = s.Service_ID
+            WHERE a.Appointment_id = %s
+            GROUP BY a.Appointment_id
+            """,
+            (appointment_id,),
+        )
+        appointment = cursor.fetchone()
+        if not appointment:
+            return jsonify({"status": "error", "message": "Appointment not found"}), 404
+        for k, v in appointment.items():
+            appointment[k] = serialize(v)
+        return jsonify({"status": "success", "appointment": appointment}), 200
+    except Error as err:
+        return jsonify({"status": "error", "message": str(err)}), 500
+    finally:
+        _safe_close(cursor, conn)

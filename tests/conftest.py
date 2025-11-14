@@ -21,8 +21,9 @@ def client(app):
     return app.test_client()
 
 @pytest.fixture
-def auth_client(client):
-    """Authenticated test client."""
+def auth_client(app):
+    """Authenticated test client - creates fresh instance each time."""
+    client = app.test_client()
     with client.session_transaction() as session:
         session['logged_in'] = True
         session['username'] = 'testuser'
@@ -34,6 +35,11 @@ def auth_client(client):
             'Car_plate': 'TEST123'
         }
     return client
+
+@pytest.fixture
+def fresh_client(app):
+    """Completely fresh client with no session data."""
+    return app.test_client()
 
 @pytest.fixture
 def mock_db():
@@ -52,3 +58,21 @@ def mock_db():
     with patch('routes.auth_routes.get_connection', return_value=mock_conn), \
          patch('routes.appointment_routes.get_connection', return_value=mock_conn):
         yield mock_conn, mock_cursor
+
+@pytest.fixture
+def sample_user_data():
+    return {
+        "username": "testuser",
+        "email": "test@example.com",
+        "password": "testpass123"
+    }
+
+@pytest.fixture
+def sample_appointment_data():
+    return {
+        "car_plate": "TEST123",
+        "date": "2024-12-31",
+        "time": "10:00",
+        "service_ids": [1, 2],
+        "notes": "Test appointment"
+    }
