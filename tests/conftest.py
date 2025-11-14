@@ -1,105 +1,38 @@
 import pytest
 import os
 import sys
-import mysql.connector
 
 # Add project root to Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 @pytest.fixture(autouse=True)
 def setup_test_environment():
     """Setup test environment before each test"""
-    # Use test database
     os.environ['TESTING'] = 'True'
-    os.environ['DB_NAME'] = 'isd_test'
     yield
     # Cleanup
     if 'TESTING' in os.environ:
         del os.environ['TESTING']
 
-def setup_test_database():
-    """Setup test database with required tables"""
-    try:
-        # Connect without specifying database to create it
-        conn = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password=""
-        )
-        cursor = conn.cursor()
-        
-        # Create test database if it doesn't exist
-        cursor.execute("CREATE DATABASE IF NOT EXISTS isd_test")
-        cursor.execute("USE isd_test")
-        
-        # Create minimal tables for testing
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS admin (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                Username VARCHAR(255) UNIQUE,
-                Email VARCHAR(255) UNIQUE,
-                Password VARCHAR(255)
-            )
-        """)
-        
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS appointment (
-                Appointment_id INT AUTO_INCREMENT PRIMARY KEY,
-                Date DATE,
-                Time TIME,
-                Notes TEXT,
-                Car_plate VARCHAR(20)
-            )
-        """)
-        
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS service (
-                Service_ID INT AUTO_INCREMENT PRIMARY KEY,
-                Service_Type VARCHAR(255)
-            )
-        """)
-        
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS appointment_service (
-                Appointment_id INT,
-                Service_ID INT,
-                FOREIGN KEY (Appointment_id) REFERENCES appointment(Appointment_id),
-                FOREIGN KEY (Service_ID) REFERENCES service(Service_ID)
-            )
-        """)
-        
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS car (
-                Car_plate VARCHAR(20) PRIMARY KEY,
-                Model VARCHAR(255),
-                Year INT,
-                VIN VARCHAR(255),
-                Next_Oil_Change DATE,
-                Owner_id INT
-            )
-        """)
-        
-        # Insert test data
-        cursor.execute("INSERT IGNORE INTO service (Service_ID, Service_Type) VALUES (1, 'Oil Change')")
-        cursor.execute("INSERT IGNORE INTO service (Service_ID, Service_Type) VALUES (2, 'Tire Rotation')")
-        cursor.execute("INSERT IGNORE INTO service (Service_ID, Service_Type) VALUES (3, 'Brake Inspection')")
-        cursor.execute("INSERT IGNORE INTO service (Service_ID, Service_Type) VALUES (4, 'Battery Check')")
-        
-        conn.commit()
-        print("Test database setup completed")
-        
-    except Exception as e:
-        print(f"Error setting up test database: {e}")
-        if conn:
-            conn.rollback()
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+@pytest.fixture
+def app():
+    """Create and configure a Flask app for testing"""
+    from app import create_app
+    
+    app = create_app({
+        'TESTING': True,
+        'SECRET_KEY': 'test-secret-key',
+        'WTF_CSRF_ENABLED': False
+    })
+    
+    yield app
 
-@pytest.fixture(scope="session", autouse=True)
-def initialize_test_database():
-    """Initialize test database before running tests"""
-    setup_test_database()
-    yield
+@pytest.fixture
+def client(app):
+    """Create a test client for the app"""
+    return app.test_client()
+
+@pytest.fixture
+def runner(app):
+    """Create a CLI runner for the app"""
+    return app.test_cli_runner()

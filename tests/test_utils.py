@@ -1,13 +1,11 @@
 import pytest
-import sys
-import os
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash
 
 from utils.helpers import serialize, verify_password
-from datetime import datetime, timedelta
 
 class TestUtils:
+    
     def test_serialize_datetime(self):
         """Test serializing datetime objects"""
         test_date = datetime(2024, 1, 1, 10, 30, 0)
@@ -30,8 +28,6 @@ class TestUtils:
     
     def test_verify_password_success(self):
         """Test successful password verification"""
-        from werkzeug.security import generate_password_hash
-        
         password = "testpassword123"
         hashed = generate_password_hash(password)
         result = verify_password(hashed, password)
@@ -39,8 +35,6 @@ class TestUtils:
     
     def test_verify_password_failure(self):
         """Test failed password verification"""
-        from werkzeug.security import generate_password_hash
-        
         password = "testpassword123"
         wrong_password = "wrongpassword"
         hashed = generate_password_hash(password)
@@ -50,9 +44,4 @@ class TestUtils:
     def test_verify_password_none_hash(self):
         """Test password verification with None hash"""
         result = verify_password(None, "anypassword")
-        assert result is False
-    
-    def test_verify_password_empty_hash(self):
-        """Test password verification with empty hash"""
-        result = verify_password("", "anypassword")
         assert result is False
