@@ -11,7 +11,7 @@ A modern Flask-based appointment management system with authentication, booking 
 - 🧪 Comprehensive test suite
 - 🔄 CI/CD pipeline
 
-- [![Coverage Sunburst](https://codecov.io/gh/roynahra1/ISD1/branch/main/sunburst.svg)](https://codecov.io/gh/roynahra/ISD1)
+- [![codecov](https://codecov.io/gh/roynahra1/ISD1/branch/main/graph/badge.svg)](https://codecov.io/gh/roynahra1/ISD1)
 
 
 
