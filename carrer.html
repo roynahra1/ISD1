@@ -1,0 +1,191 @@
+ <!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ISZ – Careers</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+
+    body {
+      background: #f8fafc;
+      color: #1e293b;
+    }
+
+    /* ===== NAVBAR ===== */
+    nav {
+      background: #0f172a;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 60px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: #60a5fa;
+    }
+
+    /* ===== HERO SECTION ===== */
+    .hero {
+      background: url('https://images.pexels.com/photos/3806275/pexels-photo-3806275.jpeg?auto=compress&cs=tinysrgb&w=1600') center/cover no-repeat;
+      height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    .hero h1 {
+      position: relative;
+      z-index: 1;
+      color: #fff;
+      font-size: 40px;
+      text-shadow: 0 0 8px rgba(255,255,255,0.3);
+    }
+
+    /* ===== JOBS SECTION ===== */
+    .jobs {
+      max-width: 1000px;
+      margin: 60px auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .job-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 28px 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .job-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+    }
+
+    .job-card h3 {
+      color: #1e3a8a;
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .job-card p {
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .btn-apply {
+      display: inline-block;
+      background: #25d366; /* WhatsApp green */
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: background 0.3s, transform 0.2s;
+    }
+
+    .btn-apply:hover {
+      background: #1da851;
+      transform: scale(1.05);
+    }
+
+    /* ===== FOOTER ===== */
+    footer {
+      background: #0f172a;
+      color: #94a3b8;
+      text-align: center;
+      padding: 20px;
+      font-size: 14px;
+      margin-top: 60px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- NAVBAR -->
+  <nav>
+    <div class="logo">ISZ</div>
+    <div class="nav-links">
+      <a href="client.html">Home</a>
+      <a href="auto.html">Auto Services</a>
+      <a href="tires.html">Tires</a>
+      <a href="careers.html">Careers</a>
+      <a href="franch.html">Become a Franchisee</a>
+      <a href="store.html">Find a Store</a>
+      <a href="offers.html">Offers</a>
+    </div>
+  </nav>
+
+  <!-- HERO SECTION -->
+  <section class="hero">
+    <h1>Join Our Team</h1>
+  </section>
+
+  <!-- JOBS LIST -->
+  <section class="jobs">
+    <div class="job-card">
+      <h3>Auto Mechanic</h3>
+      <p>Perform maintenance and repair work on cars and trucks. Ensure high-quality service and customer satisfaction.</p>
+      <a href="https://wa.me/96178919393?text=Hello%20ISZ,%20I%20am%20interested%20in%20the%20Auto%20Mechanic%20position." class="btn-apply" target="_blank">Apply on WhatsApp</a>
+    </div>
+
+    <div class="job-card">
+      <h3>Service Advisor</h3>
+      <p>Communicate with customers about their vehicles’ needs, explain repairs, and provide accurate cost estimates.</p>
+      <a href="https://wa.me/96170631093?text=Hello%20ISZ,%20I%20am%20interested%20in%20the%20Service%20Advisor%20position." class="btn-apply" target="_blank">Apply on WhatsApp</a>
+    </div>
+
+    <div class="job-card">
+      <h3>Workshop Manager</h3>
+      <p>Supervise team performance, manage schedules, and maintain safety standards across all service operations.</p>
+      <a href="https://wa.me/96178919393?text=Hello%20ISZ,%20I%20am%20interested%20in%20the%20Workshop%20Manager%20position." class="btn-apply" target="_blank">Apply on WhatsApp</a>
+    </div>
+
+    <div class="job-card">
+      <h3>Customer Service Representative</h3>
+      <p>Handle appointments, assist customers with inquiries, and ensure a positive ISZ experience every time.</p>
+      <a href="https://wa.me/96170631093?text=Hello%20ISZ,%20I%20am%20interested%20in%20the%20Customer%20Service%20Representative%20position." class="btn-apply" target="_blank">Apply on WhatsApp</a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    © 2025 ISZ | Intelligent Service Zone – All Rights Reserved
+  </footer>
+</body>
+</html>

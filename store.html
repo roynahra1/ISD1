@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ISZ – Find a Store</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+
+    body {
+      background: #f8fafc;
+      color: #1e293b;
+    }
+
+    /* ===== NAVBAR ===== */
+    nav {
+      background: #0f172a;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 60px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: #60a5fa;
+    }
+
+    /* ===== HERO SECTION ===== */
+    .hero {
+      background: url('https://images.pexels.com/photos/1111389/pexels-photo-1111389.jpeg?auto=compress&cs=tinysrgb&w=1600') center/cover no-repeat;
+      height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    .hero h1 {
+      position: relative;
+      z-index: 1;
+      color: #fff;
+      font-size: 40px;
+      text-shadow: 0 0 8px rgba(255,255,255,0.3);
+    }
+
+    /* ===== SEARCH BAR ===== */
+    .search {
+      text-align: center;
+      margin: 50px 0 20px;
+    }
+
+    .search input {
+      width: 300px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      font-size: 15px;
+      outline: none;
+      transition: 0.3s;
+    }
+
+    .search input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 8px rgba(37,99,235,0.2);
+    }
+
+    .search button {
+      margin-left: 10px;
+      padding: 12px 22px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .search button:hover {
+      background: #1e40af;
+    }
+
+    /* ===== STORE GRID ===== */
+    .stores {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 1100px;
+      margin: 40px auto 80px;
+      padding: 0 20px;
+    }
+
+    .store-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .store-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+    }
+
+    .store-card h3 {
+      color: #1e3a8a;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .store-card p {
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .store-card button {
+      margin-top: 14px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    .store-card button:hover {
+      background: #1e40af;
+    }
+
+    /* ===== FOOTER ===== */
+    footer {
+      background: #0f172a;
+      color: #94a3b8;
+      text-align: center;
+      padding: 20px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- NAVBAR -->
+  <nav>
+    <div class="logo">ISZ</div>
+    <div class="nav-links">
+      <a href="client.html">Home</a>
+      <a href="auto.html">Auto Services</a>
+      <a href="tires.html">Tires</a>
+      <a href="careers.html">Careers</a>
+      <a href="franch.html">Become a Franchisee</a>
+      <a href="store.html">Find a Store</a>
+      <a href="offers.html">Offers</a>
+    </div>
+  </nav>
+
+  <!-- HERO SECTION -->
+  <section class="hero">
+    <h1>Find a Store Near You</h1>
+  </section>
+
+  <!-- SEARCH BAR -->
+  <section class="search">
+    <input type="text" id="searchInput" placeholder="Enter city or ZIP code">
+    <button onclick="searchStore()">Search</button>
+  </section>
+
+  <!-- STORE CARDS -->
+  <section class="stores" id="storeList">
+      <div class="store-card">
+      <h3>ISZ – Dweir Center</h3>
+      <p>1 wardat Road, capital of lebanon <br>Phone: +961 78919393<br>Open: 9AM – 6PM</p>
+      <button>View on Map</button>
+    </div>
+    <div class="store-card">
+      <h3>ISZ – Beirut Downtown</h3>
+      <p>123 Main Street, Beirut<br>Phone: +961 1 555 888<br>Open: 8AM – 8PM</p>
+      <button>View on Map</button>
+    </div>
+
+    <div class="store-card">
+      <h3>ISZ – Tripoli Center</h3>
+      <p>45 Marina Road, Tripoli<br>Phone: +961 6 777 222<br>Open: 9AM – 6PM</p>
+      <button>View on Map</button>
+    </div>
+
+    <div class="store-card">
+      <h3>ISZ – Saida Service Hub</h3>
+      <p>88 Coastal Street, Saida<br>Phone: +961 7 333 111<br>Open: 8AM – 7PM</p>
+      <button>View on Map</button>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    © 2025 ISZ | Intelligent Service Zone – All Rights Reserved
+  </footer>
+
+  <script>
+    // Simple search simulation
+    function searchStore() {
+      const searchValue = document.getElementById('searchInput').value.toLowerCase();
+      const cards = document.querySelectorAll('.store-card');
+      let found = false;
+
+      cards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        if (text.includes(searchValue) || searchValue === "") {
+          card.style.display = "block";
+          found = true;
+        } else {
+          card.style.display = "none";
+        }
+      });
+
+      if (!found && searchValue) {
+        alert("No ISZ store found in this area.");
+      }
+    }
+  </script>
+</body>
+</html>

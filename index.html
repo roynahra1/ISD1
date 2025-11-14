@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Live Plate Detection</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #f4f4f4; }
+    video, canvas { border: 1px solid #ccc; margin-top: 20px; }
+    #result { margin-top: 20px; font-size: 1.2em; }
+    button { margin-top: 10px; padding: 10px 20px; font-size: 1em; }
+    #updateForm { display: none; margin-top: 20px; }
+    #manualBtn { display: none; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Live License Plate Detection</h1>
+  <video id="video" width="640" height="480" autoplay></video>
+  <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+  <br>
+  <button onclick="captureAndSend()">Detect Plate</button>
+  <button onclick="fetchCarInfo()" id="fetchBtn" style="display:none;">Fetch Car Info</button>
+  <button onclick="manualEntry()" id="manualBtn">Add a Car</button>
+  <div id="result">Waiting for detection...</div>
+
+  <form id="updateForm">
+    <h3>🛠️ Update Car Info After Oil Change</h3>
+    <input type="text" id="plate" placeholder="Plate Number" readonly /><br><br>
+    <input type="number" id="kms" placeholder="Current Kilometers" required /><br><br>
+    <textarea id="notes" placeholder="Notes"></textarea><br><br>
+    <button type="submit">Update Info</button>
+  </form>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const resultDiv = document.getElementById('result');
+    const fetchBtn = document.getElementById('fetchBtn');
+    const manualBtn = document.getElementById('manualBtn');
+    const updateForm = document.getElementById('updateForm');
+    let detectedPlate = "";
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => { video.srcObject = stream; })
+      .catch(err => { resultDiv.innerHTML = "⚠️ Cannot access camera"; });
+
+    function captureAndSend() {
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(blob => {
+        const file = new File([blob], 'frame.jpg', { type: 'image/jpeg' });
+        const formData = new FormData();
+        formData.append('image', file);
+
+        fetch('http://localhost:5000/detect', {
+          method: 'POST',
+          body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.plate_number) {
+            detectedPlate = data.plate_number;
+            resultDiv.innerHTML = `✅ Plate: <strong>${detectedPlate}</strong><br>Confidence: ${data.confidence}`;
+            fetchBtn.style.display = 'inline-block';
+            manualBtn.style.display = 'none';
+          } else {
+            resultDiv.innerHTML = `❌ No plate detected`;
+            fetchBtn.style.display = 'none';
+            updateForm.style.display = 'none';
+            manualBtn.style.display = 'inline-block';
+          }
+        })
+        .catch(err => {
+          console.error("Detection error:", err);
+          resultDiv.innerHTML = "⚠️ Error during detection";
+          fetchBtn.style.display = 'none';
+          updateForm.style.display = 'none';
+        });
+      }, 'image/jpeg');
+    }
+
+    function fetchCarInfo() {
+      if (!detectedPlate) return;
+
+      fetch('http://localhost:5000/car-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plate_number: detectedPlate })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.car_info) {
+          const info = data.car_info;
+          resultDiv.innerHTML += `<br><br>🚗 <strong>Car Info:</strong><br>
+            Owner: ${info.owner_name}<br>
+            Model: ${info.model}<br>
+            Kilometers: ${info.kms}<br>
+            Last Oil Change: ${info.last_oil_change}<br>
+            Next Due: ${info.next_oil_change_due}<br>
+            Notes: ${info.notes}`;
+
+          document.getElementById('plate').value = detectedPlate;
+          updateForm.style.display = 'block';
+          manualBtn.style.display = 'none';
+        } else {
+          resultDiv.innerHTML += `<br><br>❌ No record found`;
+          updateForm.style.display = 'none';
+          manualBtn.style.display = 'inline-block';
+        }
+      })
+      .catch(err => {
+        console.error("Fetch error:", err);
+        resultDiv.innerHTML += `<br><br>⚠️ Error fetching car info`;
+        updateForm.style.display = 'none';
+        manualBtn.style.display = 'inline-block';
+      });
+    }
+
+    function manualEntry() {
+      window.location.href = '/add-car.html'; // Redirect to your car entry form
+    }
+
+    document.getElementById('updateForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const data = {
+        plate_number: document.getElementById('plate').value,
+        kms: document.getElementById('kms').value,
+        notes: document.getElementById('notes').value
+      };
+
+      fetch('http://localhost:5000/update-car', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(response => {
+        alert(response.message);
+        document.getElementById('updateForm').reset();
+        updateForm.style.display = 'none';
+      })
+      .catch(err => {
+        console.error('Update failed:', err);
+      });
+    });
+  </script>
+</body>
+</html>

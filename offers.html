@@ -1,0 +1,229 @@
+ <!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ISZ – Offers</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+
+    body {
+      background: #f8fafc;
+      color: #1e293b;
+    }
+
+    /* ===== NAVBAR ===== */
+    nav {
+      background: #0f172a;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 60px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: #60a5fa;
+    }
+
+    /* ===== HERO SECTION ===== */
+    .hero {
+      background: url('https://images.pexels.com/photos/97075/pexels-photo-97075.jpeg?auto=compress&cs=tinysrgb&w=1600') center/cover no-repeat;
+      height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    .hero h1 {
+      position: relative;
+      z-index: 1;
+      color: #fff;
+      font-size: 40px;
+      text-shadow: 0 0 8px rgba(255,255,255,0.3);
+    }
+
+    /* ===== OFFERS GRID ===== */
+    .offers {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 1100px;
+      margin: 60px auto;
+      padding: 0 20px;
+    }
+
+    .offer-card {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .offer-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+    }
+
+    .offer-card img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+    }
+
+    .offer-card .content {
+      padding: 18px;
+    }
+
+    .offer-card h3 {
+      font-size: 18px;
+      color: #1e3a8a;
+      margin-bottom: 6px;
+    }
+
+    .offer-card p {
+      font-size: 14px;
+      color: #475569;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .discount {
+      background: #2563eb;
+      color: #fff;
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .book-btn {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .book-btn:hover {
+      background: #1e40af;
+    }
+
+    /* ===== FOOTER ===== */
+    footer {
+      background: #0f172a;
+      color: #94a3b8;
+      text-align: center;
+      padding: 20px;
+      font-size: 14px;
+      margin-top: 60px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- NAVBAR -->
+   <nav>
+    <div class="logo">ISZ</div>
+    <div class="nav-links">
+      <a href="client.html">Home</a>
+      <a href="auto.html">Auto Services</a>
+      <a href="tires.html">Tires</a>
+      <a href="careers.html">Careers</a>
+      <a href="franch.html">Become a Franchisee</a>
+      <a href="store.html">Find a Store</a>
+      <a href="offers.html">Offers</a>
+    </div>
+  </nav>
+
+
+  <!-- HERO SECTION -->
+  <section class="hero">
+    <h1>Special Offers</h1>
+  </section>
+
+  <!-- OFFERS GRID -->
+  <section class="offers">
+    <div class="offer-card">
+      <img src="https://images.pexels.com/photos/3806275/pexels-photo-3806275.jpeg?auto=compress&cs=tinysrgb&w=1600" alt="Oil Change Offer">
+      <div class="content">
+        <span class="discount">20% OFF</span>
+        <h3>Oil Change & Filter Package</h3>
+        <p>Keep your engine running smoothly. Includes oil, filter replacement, and inspection.</p>
+        <button class="book-btn">Book Now</button>
+      </div>
+    </div>
+
+    <div class="offer-card">
+      <img src="https://images.pexels.com/photos/6871669/pexels-photo-6871669.jpeg?auto=compress&cs=tinysrgb&w=1600" alt="Tire Replacement Offer">
+      <div class="content">
+        <span class="discount">Buy 3, Get 1 Free</span>
+        <h3>Tire Replacement Deal</h3>
+        <p>Purchase three tires and get the fourth free. Offer valid for all premium brands.</p>
+        <button class="book-btn">Book Now</button>
+      </div>
+    </div>
+
+    <div class="offer-card">
+      <img src="https://images.pexels.com/photos/3806282/pexels-photo-3806282.jpeg?auto=compress&cs=tinysrgb&w=1600" alt="Brake Offer">
+      <div class="content">
+        <span class="discount">15% OFF</span>
+        <h3>Brake Inspection & Service</h3>
+        <p>Get a full brake check and pad replacement for a safer drive.</p>
+        <button class="book-btn">Book Now</button>
+      </div>
+    </div>
+
+    <div class="offer-card">
+      <img src="https://images.pexels.com/photos/97075/pexels-photo-97075.jpeg?auto=compress&cs=tinysrgb&w=1600" alt="AC Offer">
+      <div class="content">
+        <span class="discount">30% OFF</span>
+        <h3>Air Conditioning Check</h3>
+        <p>Stay cool with a full AC inspection and gas refill at a discounted price.</p>
+        <button class="book-btn">Book Now</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    © 2025 ISZ | Intelligent Service Zone – All Rights Reserved
+  </footer>
+</body>
+</html>

@@ -1,0 +1,232 @@
+ <!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ISZ – Become a Franchisee</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+
+    body {
+      background: #f8fafc;
+      color: #1e293b;
+    }
+
+    /* ===== NAVBAR ===== */
+    nav {
+      background: #0f172a;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 60px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: #60a5fa;
+    }
+
+    /* ===== HERO SECTION ===== */
+    .hero {
+      background: url('https://images.pexels.com/photos/3184302/pexels-photo-3184302.jpeg?auto=compress&cs=tinysrgb&w=1600') center/cover no-repeat;
+      height: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    .hero h1 {
+      position: relative;
+      z-index: 1;
+      color: #fff;
+      font-size: 40px;
+      text-shadow: 0 0 8px rgba(255,255,255,0.3);
+    }
+
+    /* ===== INTRO SECTION ===== */
+    .intro {
+      max-width: 900px;
+      margin: 60px auto 40px;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    .intro h2 {
+      color: #1e3a8a;
+      font-size: 26px;
+      margin-bottom: 12px;
+    }
+
+    .intro p {
+      color: #475569;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    /* ===== STEPS SECTION ===== */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .step-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 28px 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      text-align: center;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .step-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+    }
+
+    .step-card img {
+      width: 70px;
+      margin-bottom: 16px;
+    }
+
+    .step-card h3 {
+      color: #1e3a8a;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .step-card p {
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ===== JOIN BUTTON ===== */
+    .join {
+      text-align: center;
+      margin: 50px 0 80px;
+    }
+
+    .join button {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .join button:hover {
+      background: #1e40af;
+    }
+
+    /* ===== FOOTER ===== */
+    footer {
+      background: #0f172a;
+      color: #94a3b8;
+      text-align: center;
+      padding: 20px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- NAVBAR -->
+ <nav>
+    <div class="logo">ISZ</div>
+    <div class="nav-links">
+      <a href="client.html">Home</a>
+      <a href="auto.html">Auto Services</a>
+      <a href="tires.html">Tires</a>
+      <a href="careers.html">Careers</a>
+      <a href="franch.html">Become a Franchisee</a>
+      <a href="store.html">Find a Store</a>
+      <a href="offers.html">Offers</a>
+    </div>
+  </nav>
+  <!-- HERO SECTION -->
+  <section class="hero">
+    <h1>Become a Franchisee</h1>
+  </section>
+
+  <!-- INTRO SECTION -->
+  <section class="intro">
+    <h2>Grow Your Business with ISZ</h2>
+    <p>Join the Intelligent Service Zone network and become part of a trusted automotive brand.  
+      With ISZ, you gain access to advanced systems, strong marketing support, and proven success in vehicle maintenance and repair.</p>
+  </section>
+
+  <!-- STEPS SECTION -->
+  <section class="steps">
+    <div class="step-card">
+      <img src="https://cdn-icons-png.flaticon.com/512/2983/2983705.png" alt="Step 1">
+      <h3>1. Submit Application</h3>
+      <p>Send your franchise application online to start your journey with ISZ.</p>
+    </div>
+
+    <div class="step-card">
+      <img src="https://cdn-icons-png.flaticon.com/512/2872/2872602.png" alt="Step 2">
+      <h3>2. Review & Meeting</h3>
+      <p>Our team will contact you to discuss your business goals and location options.</p>
+    </div>
+
+    <div class="step-card">
+      <img src="https://cdn-icons-png.flaticon.com/512/1020/1020381.png" alt="Step 3">
+      <h3>3. Agreement & Training</h3>
+      <p>Sign the franchise agreement and receive complete training on ISZ operations.</p>
+    </div>
+
+    <div class="step-card">
+      <img src="https://cdn-icons-png.flaticon.com/512/2584/2584627.png" alt="Step 4">
+      <h3>4. Launch Your Branch</h3>
+      <p>Open your ISZ location with full support from our technical and marketing teams.</p>
+    </div>
+  </section>
+
+  <!-- JOIN BUTTON -->
+  <section class="join">
+    <button>Join Now</button>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    © 2025 ISZ | Intelligent Service Zone – All Rights Reserved
+  </footer>
+</body>
+</html>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISZ - Sign Up</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(45deg, #1a1a1a, #2c2c2c);
+            color: #fff;
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .signup-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h2 {
+            margin: 0 0 30px;
+            text-align: center;
+            color: #3498db;
+            font-size: 24px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #3498db;
+            font-size: 14px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #3498db;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #2ecc71;
+            box-shadow: 0 0 5px rgba(46, 204, 113, 0.5);
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        #msg {
+            margin-top: 15px;
+            text-align: center;
+            color: #e74c3c;
+            min-height: 20px;
+        }
+
+        .login-link {
+            margin-top: 20px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .login-link a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.3s ease;
+        }
+
+        .login-link a:hover {
+            color: #2ecc71;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .signup-card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="signup-card">
+            <h2>🔧 ISZ Mechanic Sign Up</h2>
+            <form id="signupForm" onsubmit="return false;">
+                <div class="input-group">
+                    <label for="username">Username</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        placeholder="Enter username"
+                        autocomplete="username"
+                        required
+                    >
+                </div>
+                
+                <div class="input-group">
+                    <label for="email">Email</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        placeholder="Enter email"
+                        autocomplete="email"
+                        required
+                    >
+                </div>
+
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        placeholder="Enter password"
+                        autocomplete="new-password"
+                        required
+                    >
+                </div>
+
+                <div class="input-group">
+                    <label for="confirm-password">Confirm Password</label>
+                    <input 
+                        type="password" 
+                        id="confirm-password" 
+                        placeholder="Confirm password"
+                        autocomplete="new-password"
+                        required
+                    >
+                </div>
+
+                <button type="submit" onclick="handleSignup()">Create Account</button>
+                <div class="login-link">
+                    Already have an account? <a href="/login.html">Log In</a>
+                </div>
+                <div id="msg"></div>
+            </form>
+        </div>
+    </div>
+
+  // Update the script section
+<script>
+    async function handleSignup() {
+        const msg = document.getElementById('msg');
+        const username = document.getElementById('username').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+        const submitBtn = document.querySelector('#signupForm button[type="submit"]');
+
+        msg.textContent = '';
+        msg.style.color = '#e74c3c';
+
+        if (!username || !email || !password || !confirmPassword) {
+            msg.textContent = 'All fields are required';
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            msg.textContent = "Passwords don't match!";
+            return;
+        }
+
+        if (password.length < 6) {
+            msg.textContent = "Password must be at least 6 characters";
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating account...';
+
+        try {
+            const response = await fetch('/signup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ username, email, password })
+            });
+
+            const data = await response.json();
+            console.log('Server response:', response.status, data);
+
+            if (data.status === 'success') {
+                msg.style.color = '#2ecc71';
+                msg.textContent = 'Account created successfully! Redirecting...';
+                // Clear form
+                document.getElementById('username').value = '';
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+                document.getElementById('confirm-password').value = '';
+                
+               
+                    window.location.href = '/login.html';
+                
+            } else {
+                msg.textContent = data.message || 'Error creating account';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create Account';
+            }
+        } catch (error) {
+            console.error('Connection error:', error);
+            msg.textContent = 'Server connection failed. Please check if the server is running.';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Account';
+        }
+    }
+
+    document.getElementById('signupForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleSignup();
+    });
+
+    document.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleSignup();
+        }
+    });
+</script>
+
+    
+</body>
+</html>

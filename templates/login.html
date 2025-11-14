@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISZ - Login</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(45deg, #1a1a1a, #2c2c2c);
+            color: #fff;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            margin: 0 0 20px;
+            text-align: center;
+            color: #3498db;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #3498db;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        #msg {
+            margin-top: 15px;
+            text-align: center;
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="login-card">
+            <h2>🚗 ISZ Mechanic Login</h2>
+            <div class="input-group">
+                <input id="username" placeholder="Username" autocomplete="username">
+            </div>
+            <div class="input-group">
+                <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+            </div>
+            <button id="submit">Sign In</button>
+            <!-- Add after your login form -->
+<div class="login-link">
+  Don't have an account? <a href="signup.html">Sign Up</a>
+</div>
+            <div id="msg"></div>
+        </div>
+    </div>
+
+   <script>
+    document.getElementById('submit').addEventListener('click', async () => {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const msg = document.getElementById('msg');
+        const submitBtn = document.getElementById('submit');
+
+        msg.textContent = '';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Signing in...';
+
+        try {
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ username, password }),
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+            console.log('Login response:', response.status, data);
+            
+            if (data.status === 'success') {
+                msg.style.color = '#2ecc71';
+                msg.textContent = 'Login successful! Redirecting...';
+                // Clear form
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                
+                // Add the missing setTimeout
+                setTimeout(() => {
+                    window.location.href = '/appointment.html';
+                }, 1500);
+            } else {
+                msg.textContent = data.message || 'Login failed';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign In';
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            msg.textContent = 'Error connecting to server';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Sign In';
+        }
+    });
+
+    document.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('submit').click();
+        }
+    });
+</script>
+</script>
+</body>
+</html>

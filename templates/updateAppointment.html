@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Appointment</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(45deg, #1a1a1a, #2c2c2c);
+            color: #fff;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .update-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            margin: 0 0 20px;
+            color: #3498db;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #3498db;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        select.form-control {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        select.form-control option {
+            color: #000;
+            background: #fff;
+        }
+
+        select.form-control:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .service-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            border: 2px solid transparent;
+        }
+
+        .service-item.selected {
+            background: rgba(52, 152, 219, 0.2);
+            border-color: #3498db;
+            color: #3498db;
+        }
+
+        .service-item:hover {
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            color: white;
+        }
+
+        .update-btn {
+            background: #2ecc71;
+        }
+
+        .update-btn:hover {
+            background: #27ae60;
+        }
+
+        .cancel-btn {
+            background: #e74c3c;
+        }
+
+        .cancel-btn:hover {
+            background: #c0392b;
+        }
+
+        #msg {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .error { color: #e74c3c; }
+        .success { color: #2ecc71; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="update-card">
+            <h2>Update Appointment</h2>
+            <form id="updateForm">
+                <div class="form-group">
+                    <label for="date">Date</label>
+                    <input type="date" id="date" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="time">Time</label>
+                    <select id="time" class="form-control" required>
+                        <option value="">Select time</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Services</label>
+                    <div id="services" class="services-grid">
+                        <div class="service-item" data-id="1">Oil Change</div>
+                        <div class="service-item" data-id="2">Tire Rotation</div>
+                        <div class="service-item" data-id="3">Brake Inspection</div>
+                        <div class="service-item" data-id="4">Battery Check</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" class="form-control" rows="3"></textarea>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="update-btn">Update Appointment</button>
+                    <button type="button" class="cancel-btn" onclick="window.location.href='/viewAppointment/search'">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+            <div id="msg"></div>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Populate time slots
+    const timeSelect = document.getElementById('time');
+    const timeSlots = [
+        '07:00', '08:00', '09:00', '10:00', '11:00', '12:00',
+        '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'
+    ];
+    
+    timeSlots.forEach(time => {
+        const option = document.createElement('option');
+        option.value = time;
+        option.textContent = time;
+        timeSelect.appendChild(option);
+    });
+
+    // Handle service selection
+    const services = document.querySelectorAll('.service-item');
+    services.forEach(service => {
+        service.addEventListener('click', function() {
+            this.classList.toggle('selected');
+        });
+    });
+
+    // Load current appointment data
+    fetch('/appointments/current')
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            const appt = data.appointment;
+            // Format date
+            const date = new Date(appt.Date);
+            document.getElementById('date').value = date.toISOString().split('T')[0];
+            
+            // Set time
+            document.getElementById('time').value = appt.Time;
+            
+            // Set notes
+            document.getElementById('notes').value = appt.Notes || '';
+            
+            // Set selected services
+            if (appt.Services) {
+                const selectedServices = appt.Services.split(',');
+                services.forEach(service => {
+                    if (selectedServices.includes(service.textContent.trim())) {
+                        service.classList.add('selected');
+                    }
+                });
+            }
+        }
+    })
+    .catch(error => console.error('Error:', error));
+
+    // Form submission handler
+    document.getElementById('updateForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const date = document.getElementById('date').value;
+        const time = document.getElementById('time').value;
+        
+        if (isDateInPast(date, time)) {
+            alert('Cannot set appointment date/time in the past');
+            return;
+        }
+        
+        // Get selected services
+        const selectedServices = Array.from(document.querySelectorAll('.service-item.selected'))
+            .map(service => parseInt(service.dataset.id));
+
+        const formData = {
+            date: date,
+            time: time,
+            notes: document.getElementById('notes').value,
+            service_ids: selectedServices
+        };
+
+        fetch('/appointments/update', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData),
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Appointment updated successfully');
+                window.location.href = '/viewAppointment/search';
+            } else {
+                alert(data.message || 'Error updating appointment');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error updating appointment: ' + error.message);
+        });
+    });
+
+    // Date validation
+    document.getElementById('date').addEventListener('change', function(e) {
+        const selectedDate = new Date(this.value);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (selectedDate < today) {
+            alert('Cannot select a past date');
+            this.value = '';
+        }
+    });
+});
+
+function isDateInPast(dateStr, timeStr) {
+    const today = new Date();
+    const appointmentDate = new Date(dateStr);
+    const [hours, minutes] = timeStr.split(':');
+    appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    return appointmentDate < today;
+}
+</script>
+
+
+</body>
+</html>

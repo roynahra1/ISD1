@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book Appointment</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(45deg, #1a1a1a, #2c2c2c);
+      color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+
+    .booking-card {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    h2 {
+      margin: 0 0 20px;
+      color: #3498db;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #3498db;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 16px;
+    }
+
+    .form-control::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .service-item {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+      text-align: center;
+    }
+
+    .service-item.selected {
+      background: #3498db;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #2980b9;
+    }
+
+    #msg {
+      margin-top: 15px;
+      text-align: center;
+    }
+
+    .error { color: #e74c3c; }
+    .success { color: #2ecc71; }
+
+    select.form-control {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.1);
+        -webkit-appearance: auto;
+        -moz-appearance: auto;
+        appearance: auto;
+    }
+
+    select.form-control option {
+        color: #000;
+        background: #fff;
+        padding: 8px;
+    }
+
+    select.form-control:focus {
+        outline: none;
+        border-color: #3498db;
+    }
+
+    /* Make the dropdown arrow visible */
+    select.form-control::-ms-expand {
+        display: block;
+    }
+
+    .button-group {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .button-group {
+        margin-bottom: 20px;
+    }
+
+    .view-btn {
+        width: auto !important;
+        background: #2ecc71;
+        float: right;
+        padding: 8px 16px;
+    }
+
+    .view-btn:hover {
+        background: #27ae60;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="booking-card">
+      <h2>Book New Appointment</h2>
+      <div class="button-group">
+        <button type="button" class="view-btn" onclick="window.location.href='/viewAppointment/search'">
+          View Appointments
+        </button>
+      </div>
+      <form id="bookingForm">
+        <div class="form-group">
+          <label for="car_plate">Car Plate</label>
+          <input type="text" id="car_plate" class="form-control"
+                 placeholder="e.g., A123456" required
+                 pattern="[A-Za-z][0-9]{1,6}"
+                 minlength="2" maxlength="7">
+        </div>
+
+        <div class="form-group">
+          <label for="date">Date</label>
+          <input type="date" id="date" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label for="time">Time</label>
+          <select id="time" class="form-control" required>
+            <option value="">Select time</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Services</label>
+          <div id="services" class="services-grid">
+            <div class="service-item" data-id="1">Oil Change</div>
+            <div class="service-item" data-id="2">Tire Rotation</div>
+            <div class="service-item" data-id="3">Brake Inspection</div>
+            <div class="service-item" data-id="4">Battery Check</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="notes">Notes</label>
+          <textarea id="notes" class="form-control" rows="3"></textarea>
+        </div>
+
+        <button type="submit">Book Appointment</button>
+      </form>
+      <div id="msg"></div>
+    </div>
+  </div>
+
+  <script>
+    const carPlateInput = document.getElementById('car_plate');
+
+    carPlateInput.addEventListener('keydown', function (e) {
+      const value = carPlateInput.value;
+      if (value.length === 0 && !e.key.match(/^[a-zA-Z]$/)) {
+        e.preventDefault();
+      }
+      if (value.length > 0 && !e.key.match(/^[0-9]$/) && e.key.length === 1) {
+        e.preventDefault();
+      }
+    });
+
+    carPlateInput.addEventListener('input', function () {
+      let value = carPlateInput.value.toUpperCase();
+      value = value.replace(/[^A-Z0-9]/g, '');
+      if (value.length > 0) {
+        const firstChar = value[0];
+        if (!firstChar.match(/[A-Z]/)) {
+          value = '';
+        } else {
+          const digitsOnly = value.slice(1).replace(/[^0-9]/g, '');
+          value = firstChar + digitsOnly;
+        }
+      }
+      if (value.length > 7) {
+        value = value.slice(0, 7);
+      }
+      carPlateInput.value = value;
+    });
+
+    document.getElementById('date').min = new Date().toISOString().split('T')[0];
+
+    const timeSelect = document.getElementById('time');
+    function populateTimeOptions(startHour = 8, endHour = 18, intervalMinutes = 30) {
+      for (let hour = startHour; hour < endHour; hour++) {
+        for (let min = 0; min < 60; min += intervalMinutes) {
+          const timeStr = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+          const option = document.createElement('option');
+          option.value = timeStr;
+          option.textContent = timeStr;
+          timeSelect.appendChild(option);
+        }
+      }
+    }
+    populateTimeOptions();
+
+    document.getElementById('services').addEventListener('click', function(e) {
+      if (e.target.classList.contains('service-item')) {
+        e.target.classList.toggle('selected');
+      }
+    });
+
+    document.getElementById('bookingForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const submitBtn = form.querySelector("button[type='submit']");
+      const msg = document.getElementById('msg');
+
+      submitBtn.disabled = true;
+      msg.textContent = "⏳ Processing your appointment...";
+      msg.style.color = "#ccc";
+
+      const selectedServices = Array.from(document.querySelectorAll('.service-item.selected'))
+        .map(item => parseInt(item.dataset.id));
+
+      const data = {
+        car_plate: form.car_plate.value.trim(),
+        date: form.date.value,
+        time: form.time.value,
+        service_ids: selectedServices,
+        notes: form.notes.value.trim()
+      };
+
+      try {
+        const res = await fetch('/book', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const response = await res.json();
+        msg.textContent = response.message;
+        msg.style.color = response.status === 'success' ? '#2ecc71' : '#e74c3c';
+
+        if (response.status === 'success') {
+          form.reset();
+          document.querySelectorAll('.service-item.selected').forEach(item => item.classList.remove('selected'));
+        }
+      } catch (err) {
+        console.error('Booking failed:', err);
+        msg.textContent = '⚠ Error booking appointment';
+        msg.style.color = '#e74c3c';
+      } finally {
+        form.style.display = 'none';
+        submitBtn.disabled = false;
+
+        setTimeout(() => {
+          form.style.display = 'block';
+          msg.textContent = '';
+        }, 10000);
+      }
+    });
+  </script>
+</body>
+</html>

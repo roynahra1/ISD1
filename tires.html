@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ISZ – Tire Services</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+
+    body {
+      background: #f8fafc;
+      color: #1e293b;
+    }
+
+    /* ===== NAVBAR ===== */
+    nav {
+      background: #0f172a;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 60px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: #60a5fa;
+    }
+
+    /* ===== HERO SECTION ===== */
+    .hero {
+      background: url('https://images.pexels.com/photos/6871669/pexels-photo-6871669.jpeg?auto=compress&cs=tinysrgb&w=1600') center/cover no-repeat;
+      height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    .hero h1 {
+      position: relative;
+      z-index: 1;
+      color: #fff;
+      font-size: 40px;
+      text-shadow: 0 0 8px rgba(255,255,255,0.3);
+    }
+
+    /* ===== TIRES SERVICES GRID ===== */
+    .services {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+      max-width: 1100px;
+      margin: 60px auto;
+      padding: 0 20px;
+    }
+
+    .service-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 28px 20px;
+      text-align: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .service-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+    }
+
+    .service-card img {
+      width: 70px;
+      margin-bottom: 16px;
+    }
+
+    .service-card h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e3a8a;
+      margin-bottom: 8px;
+    }
+
+    .service-card p {
+      font-size: 14px;
+      color: #475569;
+      line-height: 1.5;
+    }
+
+    /* ===== FOOTER ===== */
+    footer {
+      background: #0f172a;
+      color: #94a3b8;
+      text-align: center;
+      padding: 20px;
+      font-size: 14px;
+      margin-top: 60px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- NAVBAR -->
+ <nav>
+    <div class="logo">ISZ</div>
+    <div class="nav-links">
+      <a href="client.html">Home</a>
+      <a href="auto.html">Auto Services</a>
+      <a href="tires.html">Tires</a>
+      <a href="careers.html">Careers</a>
+      <a href="franch.html">Become a Franchisee</a>
+      <a href="store.html">Find a Store</a>
+      <a href="offers.html">Offers</a>
+    </div>
+  </nav>
+
+  <!-- HERO SECTION -->
+  <section class="hero">
+    <h1>Tire Services</h1>
+  </section>
+
+  <!-- TIRES SERVICES LIST -->
+  <section class="services">
+    <div class="service-card">
+      <img src="https://cdn-icons-png.flaticon.com/512/2919/2919600.png" alt="Tire Replacement">
+      <h3>Tire Replacement</h3>
+      <p>Get your tires replaced quickly with top-quality brands that ensure safety and performance.</p>
+    </div>
+
+    <div class="service-card">
+      <img src="https://cdn-icons-png.flaticon.com/512/4802/4802499.png" alt="Tire Balancing">
+      <h3>Tire Balancing</h3>
+      <p>We balance your wheels for smooth driving and to extend the life of your tires.</p>
+    </div>
+
+    <div class="service-card">
+      <img src="https://cdn-icons-png.flaticon.com/512/6002/6002162.png" alt="Wheel Alignment">
+      <h3>Wheel Alignment</h3>
+      <p>Keep your car driving straight and prevent uneven tire wear with our alignment service.</p>
+    </div>
+
+    <div class="service-card">
+      <img src="https://cdn-icons-png.flaticon.com/512/2907/2907246.png" alt="Pressure Check">
+      <h3>Pressure Check</h3>
+      <p>We check and adjust your tire pressure for fuel efficiency and safe handling.</p>
+    </div>
+
+    <div class="service-card">
+      <img src="https://cdn-icons-png.flaticon.com/512/1867/1867439.png" alt="Seasonal Tires">
+      <h3>Seasonal Tire Change</h3>
+      <p>Switch between summer and winter tires with ease and confidence at ISZ.</p>
+    </div>
+
+    <div class="service-card">
+      <img src="https://cdn-icons-png.flaticon.com/512/3198/3198193.png" alt="Tire Inspection">
+      <h3>Tire Inspection</h3>
+      <p>Comprehensive tire check to spot damage, punctures, or aging before they cause trouble.</p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    © 2025 ISZ | Intelligent Service Zone – All Rights Reserved
+  </footer>
+</body>
+</html>
