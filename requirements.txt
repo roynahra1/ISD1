@@ -1,10 +1,6 @@
 Flask==2.3.3
 mysql-connector-python==8.1.0
 Werkzeug==2.3.7
-pytesseract==0.3.10
-opencv-python-headless==4.8.1.78
-numpy==1.24.4
 APScheduler==3.10.4
 Flask-Mail==0.9.1
-pytest==7.4.3
-pytest-cov==4.1.0
+Flask-CORS==4.0.0
