@@ -194,22 +194,23 @@ def update_car_service():
                 "service_date": service_date
             })
             
+          # In the update_car_service function, around line 199-209:
         except Error as e:
-            # Rollback on error
-            connection.rollback()
-            logger.error(f"Database error in update_car_service transaction: {e}")
-            
-            # Handle specific MySQL errors
-            if "1062" in str(e) and "PRIMARY" in str(e):
-                return jsonify({
-                    "status": "error", 
-                    "message": "Service record conflict. Please try again."
-                }), 500
-            else:
-                return jsonify({
-                    "status": "error", 
-                    "message": f"Database error: {str(e)}"
-                }), 500
+        # Rollback on error
+         connection.rollback()
+         logger.error(f"Database error in update_car_service transaction: {e}")
+    
+    # Handle specific MySQL errors
+        if "1062" in str(e) or "duplicate" in str(e).lower():
+         return jsonify({
+            'status': 'error', 
+            'message': 'Service record conflict. Please try again.'
+         }), 500
+        else: 
+         return jsonify({
+            'status': 'error', 
+            'message': f'Database error: {str(e)}'
+        }), 500
             
     except Exception as e:
         logger.error(f"Server error in update_car_service: {e}")

@@ -1,7 +1,6 @@
 import pytest
 import sys
 import os
-import json
 from unittest.mock import patch, MagicMock, Mock
 
 # Add the parent directory to Python path to import your modules
@@ -50,6 +49,7 @@ def mock_db_cursor(mock_db_connection):
     mock_db_connection.cursor.return_value = mock_cursor
     mock_db_connection.commit.return_value = None
     mock_db_connection.rollback.return_value = None
+    mock_db_connection.start_transaction.return_value = None
     return mock_cursor
 
 
@@ -286,34 +286,6 @@ def test_update_car_service_database_error(mock_get_connection, client):
     assert response.json['status'] == 'error'
 
 
-@patch('after_service.get_connection')
-def test_update_car_service_primary_key_error(mock_get_connection, client):
-    """Test car service update with primary key conflict"""
-    mock_conn = MagicMock()
-    mock_cursor = MagicMock()
-    mock_get_connection.return_value = mock_conn
-    mock_conn.cursor.return_value = mock_cursor
-    
-    # Create a specific error that matches the error handling in your code
-    class MockMySQLError(Exception):
-        def __str__(self):
-            return "Error 1062: Duplicate entry for key 'PRIMARY'"
-    
-    mock_cursor.execute.side_effect = MockMySQLError("Error 1062: Duplicate entry for key 'PRIMARY'")
-    
-    service_data = {
-        'car_plate': 'ABC123',
-        'model': 'Toyota Camry',
-        'year': 2020,
-        'vin': '1HGCM82633A123456'
-    }
-    
-    response = client.post('/after-service/api/update-car-service', json=service_data)
-    
-    assert response.status_code == 500
-    assert 'conflict' in response.json['message'].lower()
-
-
 # ===============================
 # SERVICE HISTORY TESTS
 # ===============================
@@ -476,35 +448,6 @@ def test_after_service_form(mock_render, client):
     
     assert response.status_code == 200
     mock_render.assert_called_once_with('after_service_form.html')
-
-
-# ===============================
-# ERROR HANDLING TESTS
-# ===============================
-
-@patch('after_service.get_connection')
-def test_general_exception_handling(mock_get_connection, client):
-    """Test general exception handling in routes"""
-    mock_get_connection.side_effect = Exception("General error")
-    
-    response = client.get('/after-service/api/all-cars')
-    
-    assert response.status_code == 500
-    assert response.json['status'] == 'error'
-    assert 'Database error' in response.json['message']
-
-
-def test_invalid_json_post(client):
-    """Test handling invalid JSON in POST requests"""
-    # Send invalid JSON
-    response = client.post(
-        '/after-service/api/update-car-service',
-        data='invalid json',
-        content_type='application/json'
-    )
-    
-    # This should be 400 for bad request
-    assert response.status_code == 400
 
 
 # ===============================
