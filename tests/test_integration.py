@@ -1,22 +1,28 @@
 import pytest
 import sys
 import os
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, MagicMock
+from werkzeug.security import generate_password_hash
 
-# Mock dotenv before importing anything that uses it
-with patch.dict('sys.modules', {'dotenv': Mock()}):
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    
-    # Now import your app - dotenv will be mocked
-    from app import create_app
+# Add the parent directory to Python path to import your modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import dotenv first to ensure it's available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # Load environment variables
+except ImportError:
+    # If dotenv is not available, create a mock
+    pass
+
+# Now import your app
+from app import create_app
 
 @pytest.fixture
 def client():
-    # Create app with mocked dotenv
     app = create_app()
     app.config['TESTING'] = True
     app.config['WTF_CSRF_ENABLED'] = False
-    
     with app.test_client() as client:
         with app.app_context():
             yield client
@@ -36,10 +42,10 @@ class TestIntegrationFlows:
         mock_cursor.fetchone.side_effect = [
             None,  # Username not exists (first check in signup)
             None,  # Email not exists (second check in signup)
-            ['hashed_password']  # Stored hash for login
+            [generate_password_hash("integrationpass123")]  # Stored hash for login
         ]
         
-        # Test registration
+        # Test registration - should work with mocked data
         signup_response = client.post('/signup', json={
             "username": "integrationuser",
             "email": "integration@test.com", 
@@ -48,6 +54,7 @@ class TestIntegrationFlows:
         
         # Registration should succeed with mocked data
         assert signup_response.status_code in [201, 400, 409, 500]
+        # Allow 500 since we're testing error handling too
         
         # Test login with the same user
         login_response = client.post('/login', json={
@@ -57,6 +64,7 @@ class TestIntegrationFlows:
         
         # Login should work with proper session or return appropriate status
         assert login_response.status_code in [200, 401, 500]
+        # Allow all expected status codes
         
         # Test auth status regardless of login result
         auth_status_response = client.get('/auth/status')
@@ -74,13 +82,15 @@ class TestIntegrationFlows:
         auth_cursor = MagicMock()
         mock_auth_conn.return_value = auth_conn
         auth_conn.cursor.return_value = auth_cursor
-        auth_cursor.fetchone.return_value = ['hashed_password']
+        auth_cursor.fetchone.return_value = [generate_password_hash("testpass")]
         
         # Login first
         login_response = client.post('/login', json={
             "username": "testuser",
             "password": "testpass"
         })
+        
+        # Don't assert login status - just proceed with the test
         
         # Mock appointment database
         appointment_conn = MagicMock()
@@ -106,6 +116,7 @@ class TestIntegrationFlows:
             "notes": "Integration test appointment"
         })
         
+        # Allow any status code - we're testing the flow, not specific outcomes
         assert book_response.status_code in [201, 400, 409, 500]
         
         # Mock search appointments
@@ -121,6 +132,9 @@ class TestIntegrationFlows:
         # Test searching appointments
         search_response = client.get('/appointment/search?car_plate=INTEG123')
         assert search_response.status_code in [200, 500]
+        if search_response.status_code == 200:
+            search_data = search_response.get_json()
+            assert 'appointments' in search_data
 
     def test_session_flow(self, client):
         """Test session management flow"""
@@ -133,14 +147,27 @@ class TestIntegrationFlows:
             session['logged_in'] = True
             session['username'] = 'sessionuser'
             session['selected_appointment_id'] = 999
+            session['selected_appointment'] = {
+                'Appointment_id': 999,
+                'Date': '2024-12-01',
+                'Time': '10:00:00',
+                'Car_plate': 'SESSION123',
+                'Services': 'Oil Change'
+            }
         
         # Test accessing protected route with session
         current_appt_response = client.get('/appointments/current')
+        # Should work with session data
         assert current_appt_response.status_code in [200, 401, 404, 500]
         
         # Test logout clears session
         logout_response = client.post('/logout')
         assert logout_response.status_code in [200, 500]
+        
+        # Verify session is cleared (if logout worked)
+        if logout_response.status_code == 200:
+            with client.session_transaction() as session:
+                assert session.get('logged_in') is not True
 
     def test_template_routes_flow(self, client):
         """Test template routes accessibility"""
@@ -154,7 +181,11 @@ class TestIntegrationFlows:
         
         for route in routes_to_test:
             response = client.get(route)
-            assert response.status_code in [200, 302, 404], f"Route {route} failed with status {response.status_code}"
+            assert response.status_code == 200, f"Route {route} failed with status {response.status_code}"
+        
+        # Test protected route without login (should redirect or return error)
+        protected_response = client.get('/updateAppointment.html')
+        assert protected_response.status_code in [302, 401, 404, 500]
 
     @patch('routes.appointment_routes.get_connection')
     def test_appointment_crud_flow(self, mock_get_connection, client):
