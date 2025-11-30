@@ -26,7 +26,7 @@ class TestBasicIntegration:
             from routes.mechanic_routes import mechanic_bp
             
             assert auth_bp.name == 'auth'
-            assert appointment_bp.name == 'appointment'
+            assert appointment_bp.name == 'appointments'  # Fixed: actual name is 'appointments'
             assert car_bp.name == 'car'
             assert mechanic_bp.name == 'mechanic'
         except Exception as e:
