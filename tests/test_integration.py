@@ -2,12 +2,11 @@ import pytest
 import sys
 import os
 from unittest.mock import patch, MagicMock
+from werkzeug.security import generate_password_hash
 
-# Mock dotenv BEFORE importing anything that might use it
-with patch.dict('sys.modules', {'dotenv': MagicMock()}):
-    # Now import your app - dotenv will be mocked
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from app import create_app
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app import create_app
 
 @pytest.fixture
 def client():
@@ -33,7 +32,7 @@ class TestIntegrationFlows:
         mock_cursor.fetchone.side_effect = [
             None,  # Username not exists (first check in signup)
             None,  # Email not exists (second check in signup)
-            ['hashed_password']  # Stored hash for login
+            [generate_password_hash("integrationpass123")]  # Stored hash for login
         ]
         
         # Test registration - should work with mocked data
@@ -73,7 +72,7 @@ class TestIntegrationFlows:
         auth_cursor = MagicMock()
         mock_auth_conn.return_value = auth_conn
         auth_conn.cursor.return_value = auth_cursor
-        auth_cursor.fetchone.return_value = ['hashed_password']
+        auth_cursor.fetchone.return_value = [generate_password_hash("testpass")]
         
         # Login first
         login_response = client.post('/login', json={
