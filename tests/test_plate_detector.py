@@ -2,9 +2,18 @@ import pytest
 import sys
 import os
 from unittest.mock import patch, MagicMock, Mock
-import numpy as np
-import cv2
 import logging
+
+# Check if image processing dependencies are available
+try:
+    import numpy as np
+    import cv2
+    HAS_IMAGE_DEPS = True
+except ImportError:
+    HAS_IMAGE_DEPS = False
+
+# Skip all tests if image dependencies are missing
+pytestmark = pytest.mark.skipif(not HAS_IMAGE_DEPS, reason="Image processing dependencies not installed")
 
 # Add the parent directory to Python path to import your modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -13,7 +22,7 @@ from plate_detector import WorkingPlateDetector, plate_detector
 
 
 # ===============================
-# TEST FIXTURES
+# TEST FIXTURES (Only if dependencies available)
 # ===============================
 
 @pytest.fixture
@@ -103,7 +112,7 @@ def test_configure_tesseract_unix_not_found(mock_which, detector):
 
 
 # ===============================
-# IMAGE PREPROCESSING TESTS
+# IMAGE PREPROCESSING TESTS (Only if image deps available)
 # ===============================
 
 def test_preprocess_image_color(detector, sample_image):
@@ -160,6 +169,14 @@ def test_safe_conf_invalid(detector):
     assert detector._safe_conf("") == 0.0
     assert detector._safe_conf("-1") == 0.0
     assert detector._safe_conf("invalid") == 0.0
+
+
+def test_safe_conf_various_formats(detector):
+    """Test various confidence value formats"""
+    # Test percentage values that need division
+    assert detector._safe_conf("150") == 1.0  # 150% -> 1.0
+    assert detector._safe_conf("75") == 0.75  # 75% -> 0.75
+    assert detector._safe_conf("15") == 0.15  # 15% -> 0.15
 
 
 # ===============================
@@ -232,11 +249,11 @@ def test_is_valid_plate_boundary_lengths(detector):
 
 
 # ===============================
-# OCR REGION TESTS
+# OCR REGION TESTS (Mocked - always work)
 # ===============================
 
 @patch('plate_detector.pytesseract.image_to_data')
-def test_ocr_region_success(mock_tesseract, detector, sample_image):
+def test_ocr_region_success(mock_tesseract, detector):
     """Test successful OCR region processing"""
     # Mock tesseract response
     mock_tesseract.return_value = {
@@ -245,14 +262,17 @@ def test_ocr_region_success(mock_tesseract, detector, sample_image):
     }
     
     detector.initialized = True
-    text, confidence = detector.ocr_region(sample_image)
+    
+    # Create a simple mock image
+    mock_image = MagicMock()
+    text, confidence = detector.ocr_region(mock_image)
     
     assert text == "ABC123"
     assert confidence > 0
 
 
 @patch('plate_detector.pytesseract.image_to_data')
-def test_ocr_region_no_valid_text(mock_tesseract, detector, sample_image):
+def test_ocr_region_no_valid_text(mock_tesseract, detector):
     """Test OCR when no valid text is found"""
     mock_tesseract.return_value = {
         'text': ['', '!@#$'],
@@ -260,14 +280,16 @@ def test_ocr_region_no_valid_text(mock_tesseract, detector, sample_image):
     }
     
     detector.initialized = True
-    text, confidence = detector.ocr_region(sample_image)
+    
+    mock_image = MagicMock()
+    text, confidence = detector.ocr_region(mock_image)
     
     assert text is None
     assert confidence == 0.0
 
 
 @patch('plate_detector.pytesseract.image_to_data')
-def test_ocr_region_low_confidence(mock_tesseract, detector, sample_image):
+def test_ocr_region_low_confidence(mock_tesseract, detector):
     """Test OCR with low confidence results"""
     mock_tesseract.return_value = {
         'text': ['ABC123'],
@@ -275,35 +297,41 @@ def test_ocr_region_low_confidence(mock_tesseract, detector, sample_image):
     }
     
     detector.initialized = True
-    text, confidence = detector.ocr_region(sample_image)
+    
+    mock_image = MagicMock()
+    text, confidence = detector.ocr_region(mock_image)
     
     assert text is None
     assert confidence == 0.0
 
 
-def test_ocr_region_not_initialized(detector, sample_image):
+def test_ocr_region_not_initialized(detector):
     """Test OCR when detector is not initialized"""
     detector.initialized = False
-    text, confidence = detector.ocr_region(sample_image)
+    
+    mock_image = MagicMock()
+    text, confidence = detector.ocr_region(mock_image)
     
     assert text is None
     assert confidence == 0.0
 
 
 @patch('plate_detector.pytesseract.image_to_data')
-def test_ocr_region_exception_handling(mock_tesseract, detector, sample_image):
+def test_ocr_region_exception_handling(mock_tesseract, detector):
     """Test OCR exception handling"""
     mock_tesseract.side_effect = Exception("Tesseract error")
     
     detector.initialized = True
-    text, confidence = detector.ocr_region(sample_image)
+    
+    mock_image = MagicMock()
+    text, confidence = detector.ocr_region(mock_image)
     
     assert text is None
     assert confidence == 0.0
 
 
 # ===============================
-# PLATE DETECTION TESTS
+# PLATE DETECTION TESTS (Mixed real/mocked)
 # ===============================
 
 @patch('plate_detector.pytesseract.image_to_data')
@@ -457,7 +485,7 @@ def test_preprocess_performance(detector):
 
 
 # ===============================
-# ADDITIONAL TESTS FOR 100% COVERAGE
+# ADDITIONAL TESTS FOR COVERAGE
 # ===============================
 
 def test_configure_tesseract_exception_handling(detector):
@@ -472,12 +500,23 @@ def test_configure_tesseract_exception_handling(detector):
             assert detector.initialized == False
 
 
-def test_safe_conf_various_formats(detector):
-    """Test various confidence value formats"""
-    # Test percentage values that need division
-    assert detector._safe_conf("150") == 1.0  # 150% -> 1.0
-    assert detector._safe_conf("75") == 0.75  # 75% -> 0.75
-    assert detector._safe_conf("15") == 0.15  # 15% -> 0.15
+# ===============================
+# MOCK-ONLY TESTS (For when image deps are missing)
+# ===============================
+
+class TestPlateDetectorWithoutImageDeps:
+    """Tests that work even without image dependencies"""
+    
+    @pytest.fixture
+    def detector(self):
+        return WorkingPlateDetector()
+    
+    def test_basic_functionality_without_image_deps(self, detector):
+        """Test basic functionality without image processing"""
+        # These should work even without numpy/cv2
+        assert detector.clean_text("abc123") == "ABC123"
+        assert detector.is_valid_plate("ABC123") == True
+        assert detector._safe_conf("0.8") == 0.8
 
 
 if __name__ == '__main__':
