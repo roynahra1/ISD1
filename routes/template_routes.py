@@ -29,3 +29,8 @@ def serve_update():
     if not session.get("selected_appointment"):
         return redirect("/viewAppointment/search")
     return render_template("updateAppointment.html")
+
+@template_bp.route("/after_service_form.html")
+def after_service_form():
+    plate = session.get('detected_plate', '')
+    return render_template("after_service_form.html", plate=plate)

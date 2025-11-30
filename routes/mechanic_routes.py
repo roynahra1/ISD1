@@ -1,0 +1,1133 @@
+from flask import Blueprint, request, jsonify, session, render_template, redirect, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
+from mysql.connector import Error
+import logging
+from datetime import datetime, timedelta
+import re
+from functools import wraps
+from utils.database import get_connection, _safe_close
+
+mechanic_bp = Blueprint('mechanic', __name__, url_prefix='/mechanic')
+logger = logging.getLogger(__name__)
+
+# ===============================
+# DECORATORS & UTILITIES - STRICT MECHANIC ONLY
+# ===============================
+
+def mechanic_login_required(f):
+    """STRICT decorator - ONLY accepts mechanic session, ignores regular session"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get("mechanic_logged_in"):
+            return jsonify({"success": False, "message": "Unauthorized - Please login via mechanic portal"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# ===============================
+# TEMPLATE ROUTES - STRICT MECHANIC ONLY
+# ===============================
+
+@mechanic_bp.route("/dashboard")
+def mechanic_dashboard():
+    """Serve the mechanic dashboard - MECHANIC SESSION ONLY"""
+    if not session.get("mechanic_logged_in"):
+        return redirect("/mechanic/login.html")
+    
+    username = session.get("mechanic_username", "Mechanic")
+    return render_template("mechanic_dashboard.html", username=username)
+
+@mechanic_bp.route("/appointments")
+def mechanic_appointments_page():
+    """Serve mechanic appointments page - MECHANIC SESSION ONLY"""
+    if not session.get("mechanic_logged_in"):
+        return redirect("/mechanic/login.html")
+    return render_template("mechanic_appointments.html", username=session.get("mechanic_username"))
+
+@mechanic_bp.route("/service-history")
+def mechanic_service_history_page():
+    """Serve mechanic service history page - MECHANIC SESSION ONLY"""
+    if not session.get("mechanic_logged_in"):
+        return redirect("/mechanic/login.html")
+    return render_template("mechanic_service_history.html", username=session.get("mechanic_username"))
+
+@mechanic_bp.route("/reports")
+def mechanic_reports_page():
+    """Serve mechanic reports page - MECHANIC SESSION ONLY"""
+    if not session.get("mechanic_logged_in"):
+        return redirect("/mechanic/login.html")
+    return render_template("mechanic_reports.html", username=session.get("mechanic_username"))
+
+# ===============================
+# ADMIN TEMPLATE ROUTES (PART OF MECHANIC SYSTEM) - MECHANIC SESSION ONLY
+# ===============================
+
+@mechanic_bp.route("/admin/dashboard")
+def admin_dashboard():
+    """Serve admin dashboard page - MECHANIC SESSION ONLY"""
+    if not session.get("mechanic_logged_in"):
+        return redirect("/mechanic/login.html")
+    
+    username = session.get("mechanic_username", "Admin")
+    return render_template("mechanic_dashboard.html", username=username)
+
+@mechanic_bp.route("/admin/appointments")
+def admin_appointments_page():
+    """Serve admin appointments page - MECHANIC SESSION ONLY"""
+    if not session.get("mechanic_logged_in"):
+        return redirect("/mechanic/login.html")
+    return render_template("mechanic_appointments.html", username=session.get("mechanic_username"))
+
+@mechanic_bp.route("/admin/service-history")
+def admin_service_history_page():
+    """Serve admin service history page - MECHANIC SESSION ONLY"""
+    if not session.get("mechanic_logged_in"):
+        return redirect("/mechanic/login.html")
+    return render_template("mechanic_service_history.html", username=session.get("mechanic_username"))
+
+# ===============================
+# DASHBOARD API ROUTES - MECHANIC SESSION ONLY
+# ===============================
+
+@mechanic_bp.route('/api/dashboard-stats', methods=['GET'])
+@mechanic_login_required
+def get_dashboard_stats():
+    """API endpoint for dashboard statistics with real database values"""
+    print("📊 Dashboard stats requested...")
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # Today's services count
+        cursor.execute("""
+            SELECT COUNT(*) as count 
+            FROM service_history 
+            WHERE DATE(Service_Date) = CURDATE()
+        """)
+        today_services_result = cursor.fetchone()
+        today_services = today_services_result[0] if today_services_result else 0
+        
+        # Completed this week
+        cursor.execute("""
+            SELECT COUNT(*) as count 
+            FROM service_history 
+            WHERE YEARWEEK(Service_Date, 1) = YEARWEEK(CURDATE(), 1)
+        """)
+        completed_week_result = cursor.fetchone()
+        completed_week = completed_week_result[0] if completed_week_result else 0
+        
+        # Today's appointments
+        cursor.execute("SELECT COUNT(*) as count FROM appointment WHERE Date = CURDATE()")
+        today_appointments_result = cursor.fetchone()
+        today_appointments = today_appointments_result[0] if today_appointments_result else 0
+        
+        # Total appointments
+        cursor.execute("SELECT COUNT(*) as count FROM appointment")
+        total_appointments_result = cursor.fetchone()
+        total_appointments = total_appointments_result[0] if total_appointments_result else 0
+        
+        # Urgent jobs (overdue oil changes)
+        cursor.execute("""
+            SELECT COUNT(*) as count 
+            FROM car 
+            WHERE Next_Oil_Change IS NOT NULL 
+            AND Next_Oil_Change < CURDATE()
+        """)
+        urgent_jobs_result = cursor.fetchone()
+        urgent_jobs = urgent_jobs_result[0] if urgent_jobs_result else 0
+        
+        # Total cars
+        cursor.execute("SELECT COUNT(*) as count FROM car")
+        total_cars_result = cursor.fetchone()
+        total_cars = total_cars_result[0] if total_cars_result else 0
+        
+        # Total owners
+        cursor.execute("SELECT COUNT(*) as count FROM owner")
+        total_owners_result = cursor.fetchone()
+        total_owners = total_owners_result[0] if total_owners_result else 0
+        
+        print(f"📊 Stats - Today Services: {today_services}, Week: {completed_week}, Today Appointments: {today_appointments}")
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "today_services": today_services,
+                "completed_week": completed_week,
+                "today_appointments": today_appointments,
+                "pending_services": total_appointments,
+                "urgent_jobs": urgent_jobs,
+                "total_cars": total_cars,
+                "total_owners": total_owners
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Dashboard stats error: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error loading statistics: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+@mechanic_bp.route('/api/recent-activity', methods=['GET'])
+@mechanic_login_required
+def get_recent_activity():
+    """API endpoint for recent activity"""
+    print("📋 Recent activity requested...")
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get recent service history
+        cursor.execute("""
+            SELECT 
+                sh.History_ID,
+                sh.Service_Date as timestamp,
+                sh.Car_plate as plate,
+                sh.Notes as description,
+                sh.Mileage as mileage,
+                c.Model as car_model,
+                o.Owner_Name as owner_name
+            FROM service_history sh
+            LEFT JOIN car c ON sh.Car_plate = c.Car_plate
+            LEFT JOIN owner o ON c.Owner_ID = o.Owner_ID
+            ORDER BY sh.Service_Date DESC
+            LIMIT 8
+        """)
+        
+        activities = cursor.fetchall()
+        
+        # Format activities for frontend
+        formatted_activities = []
+        for activity in activities:
+            # Format timestamp
+            timestamp = activity['timestamp']
+            if timestamp and hasattr(timestamp, 'isoformat'):
+                timestamp = timestamp.isoformat()
+            
+            formatted_activities.append({
+                "type": "service",
+                "title": f"Serviced {activity['plate']}",
+                "description": activity['description'] or f"Service - {activity['mileage'] or 'N/A'} km",
+                "timestamp": timestamp
+            })
+        
+        print(f"📋 Returning {len(formatted_activities)} activities")
+        return jsonify({
+            "success": True,
+            "data": formatted_activities
+        })
+        
+    except Exception as e:
+        logger.error(f"Recent activity error: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error loading activities: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+# ===============================
+# ADD CAR ROUTES - MECHANIC SESSION ONLY
+# ===============================
+
+@mechanic_bp.route('/api/car/<plate_number>/latest-mileage', methods=['GET'])
+@mechanic_login_required
+def get_latest_mileage(plate_number):
+    """Get the MAXIMUM recorded mileage for a car"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get MAXIMUM mileage (not just latest)
+        cursor.execute("""
+            SELECT MAX(Mileage) as max_mileage
+            FROM service_history 
+            WHERE Car_plate = %s
+        """, (plate_number,))
+        
+        result = cursor.fetchone()
+        
+        max_mileage = result['max_mileage'] if result and result['max_mileage'] is not None else 0
+        
+        return jsonify({
+            "success": True,
+            "latest_mileage": max_mileage,
+            "max_mileage": max_mileage,
+            "plate_number": plate_number
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching maximum mileage: {e}")
+        return jsonify({
+            "success": False,
+            "message": "Error fetching mileage data"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+        
+@mechanic_bp.route("/mechanic/addCar.html")
+def add_car_form():
+    """Serve the add car form page"""
+    if not session.get("mechanic_logged_in"):
+        return redirect("/mechanic/login.html")
+    
+    # Get plate from session if available
+    plate_number = session.get('detected_plate', '')
+    
+    return render_template("addCar.html", 
+                         plate_number=plate_number,
+                         username=session.get("mechanic_username"))
+
+@mechanic_bp.route("/plate-detection")
+def plate_detection_page():
+    """Serve license plate detection page"""
+    if not session.get("mechanic_logged_in"):
+        return redirect("/mechanic/login.html")
+    return render_template("homee.html", username=session.get("mechanic_username"))
+
+@mechanic_bp.route("/detect", methods=["POST"])
+def detect_plate():
+    """License plate detection endpoint - fallback version"""
+    return jsonify({
+        "success": False,
+        "message": "Plate detection unavailable. Use manual entry.",
+        "fallback": True
+    }), 503
+
+@mechanic_bp.route("/api/store-plate", methods=["POST"])
+@mechanic_login_required
+def store_plate():
+    """API endpoint to store plate number in session"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "No data provided"}), 400
+        
+        plate_number = data.get('plate_number', '').strip().upper()
+        
+        if not plate_number:
+            return jsonify({"success": False, "message": "Plate number is required"}), 400
+        
+        # Store plate in session
+        session['detected_plate'] = plate_number
+        
+        logger.info(f"Plate {plate_number} stored in session by user {session.get('mechanic_username')}")
+        
+        return jsonify({
+            "success": True,
+            "message": "Plate stored successfully"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error storing plate: {e}")
+        return jsonify({
+            "success": False, 
+            "message": f"Error storing plate: {str(e)}"
+        }), 500
+
+@mechanic_bp.route("/api/stored-plate", methods=["GET"])
+@mechanic_login_required
+def get_stored_plate():
+    """Get stored plate from session"""
+    plate_number = session.get('detected_plate', '')
+    return jsonify({
+        "plate": plate_number,
+        "has_plate": bool(plate_number)
+    })
+
+@mechanic_bp.route("/api/clear-plate", methods=["POST"])
+@mechanic_login_required
+def clear_stored_plate():
+    """Clear stored plate from session"""
+    session.pop('detected_plate', None)
+    return jsonify({"success": True, "message": "Plate cleared"})
+
+@mechanic_bp.route("/api/add-car", methods=["POST"])
+@mechanic_login_required
+def add_car():
+    """Add new car to database"""
+    print("🚗 Adding new car to database...")
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"status": "error", "message": "No data provided"}), 400
+    
+    # Extract data matching frontend form
+    car_plate = data.get('car_plate', '').strip().upper()
+    model = data.get('model', '').strip()
+    year = data.get('year')
+    vin = data.get('vin', '').strip()
+    next_oil_change = data.get('next_oil_change')
+    owner_type = data.get('owner_type')
+    phone_number = data.get('PhoneNUMB', '').strip()
+    current_mileage = data.get('current_mileage')
+    last_service_date = data.get('last_service_date')
+    service_notes = data.get('service_notes', 'Initial car registration')
+    
+    # New owner fields (only for new owners)
+    owner_name = data.get('owner_name', '').strip()
+    owner_email = data.get('owner_email', '').strip()
+    
+    # Validation
+    if not car_plate or not re.match(r'^[A-Z]{1}[0-9]{1,6}$', car_plate):
+        return jsonify({"status": "error", "message": "Valid license plate is required (1 letter + 1-6 digits)"}), 400
+    
+    if not model:
+        return jsonify({"status": "error", "message": "Car model is required"}), 400
+    
+    if not year:
+        return jsonify({"status": "error", "message": "Manufacturing year is required"}), 400
+    
+    if not vin or len(vin) != 17:
+        return jsonify({"status": "error", "message": "Valid 17-character VIN is required"}), 400
+    
+    if not phone_number:
+        return jsonify({"status": "error", "message": "Phone number is required"}), 400
+    
+    if owner_type == "new" and (not owner_name or not owner_email):
+        return jsonify({"status": "error", "message": "Owner name and email are required for new owners"}), 400
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check if car already exists
+        cursor.execute("SELECT Car_plate FROM car WHERE Car_plate = %s", (car_plate,))
+        if cursor.fetchone():
+            return jsonify({"status": "error", "message": f"Car with plate {car_plate} already exists"}), 409
+        
+        # Start transaction
+        conn.start_transaction()
+        
+        owner_id = None
+        
+        if owner_type == "existing":
+            # Find existing owner by phone number
+            cursor.execute("SELECT Owner_ID FROM owner WHERE PhoneNUMB = %s", (phone_number,))
+            existing_owner = cursor.fetchone()
+            if existing_owner:
+                owner_id = existing_owner['Owner_ID']
+                print(f"🔍 Found existing owner ID: {owner_id}")
+            else:
+                return jsonify({"status": "error", "message": "No existing owner found with this phone number"}), 404
+                
+        else:  # new owner
+            # Check if owner with same phone already exists
+            cursor.execute("SELECT Owner_ID FROM owner WHERE PhoneNUMB = %s", (phone_number,))
+            if cursor.fetchone():
+                return jsonify({"status": "error", "message": "Owner with this phone number already exists. Use 'Existing Owner' instead."}), 409
+            
+            # Create new owner
+            cursor.execute("""
+                INSERT INTO owner (Owner_Name, Owner_Email, PhoneNUMB)
+                VALUES (%s, %s, %s)
+            """, (owner_name, owner_email, phone_number))
+            owner_id = cursor.lastrowid
+            print(f"✅ Created new owner ID: {owner_id}")
+        
+        # Add the car
+        cursor.execute("""
+            INSERT INTO car (Car_plate, Model, Year, VIN, Next_Oil_Change, Owner_ID)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (car_plate, model, year, vin, next_oil_change, owner_id))
+        
+        # Create initial service history if mileage provided
+        if current_mileage:
+            cursor.execute("""
+                INSERT INTO service_history (Service_Date, Mileage, Last_Oil_Change, Notes, Car_plate)
+                VALUES (%s, %s, CURDATE(), %s, %s)
+            """, (last_service_date or datetime.now().date(), current_mileage, service_notes, car_plate))
+            
+            history_id = cursor.lastrowid
+            print(f"✅ Created initial service history record #{history_id}")
+        
+        conn.commit()
+        
+        # Clear the stored plate from session
+        session.pop('detected_plate', None)
+        
+        # Log the action
+        logger.info(f"New car added: {car_plate} by user {session.get('mechanic_username')}")
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Car {car_plate} added successfully to database",
+            "car_plate": car_plate,
+            "owner_id": owner_id
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"Error adding car: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error adding car: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+@mechanic_bp.route("/api/check-owner/<phone_number>", methods=["GET"])
+@mechanic_login_required
+def check_owner_exists(phone_number):
+    """Check if owner exists by phone number"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("SELECT Owner_ID, Owner_Name, Owner_Email FROM owner WHERE PhoneNUMB = %s", (phone_number,))
+        owner = cursor.fetchone()
+        
+        return jsonify({
+            "success": True,
+            "exists": owner is not None,
+            "owner": owner
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking owner: {e}")
+        return jsonify({
+            "success": False,
+            "message": "Error checking owner"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+# ===============================
+# CAR INFO API ROUTES - MECHANIC SESSION ONLY
+# ===============================
+
+@mechanic_bp.route('/api/car/<plate_number>', methods=['GET'])
+@mechanic_login_required
+def get_car_info(plate_number):
+    """Get car information by license plate"""
+    print(f"🔍 MECHANIC API: Searching for plate: '{plate_number}'")
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Use UPPER() for case-insensitive search
+        query = """
+        SELECT 
+            c.Car_plate as plate_number,
+            c.Model as model,
+            c.Year as year,
+            c.VIN as vin,
+            c.Next_Oil_Change as next_oil_change,
+            o.Owner_Name as owner_name,
+            o.Owner_Email as owner_email,
+            o.PhoneNUMB as owner_phone
+        FROM car c
+        LEFT JOIN owner o ON c.Owner_ID = o.Owner_ID
+        WHERE UPPER(c.Car_plate) = UPPER(%s)
+        """
+
+        cursor.execute(query, (plate_number.strip().upper(),))
+        result = cursor.fetchone()
+
+        if result:
+            print(f"✅ MECHANIC API: Car found: {result['plate_number']}")
+            return jsonify({
+                "success": True,
+                "car_info": result
+            })
+        else:
+            print(f"❌ MECHANIC API: No car found with plate: {plate_number}")
+            return jsonify({
+                "success": False,
+                "message": f"No car found with plate: {plate_number}"
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Error in get_car_info: {e}")
+        return jsonify({
+            "success": False,
+            "message": "Internal server error"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+@mechanic_bp.route('/api/car/<plate_number>/maintenance', methods=['POST'])
+@mechanic_login_required
+def update_car_maintenance(plate_number):
+    """Update car maintenance"""
+    conn = None
+    cursor = None
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "No data provided"}), 400
+
+        mileage = data.get('mileage') or data.get('kms')
+        notes = data.get('notes', '')
+
+        if not mileage:
+            return jsonify({"success": False, "message": "Mileage is required"}), 400
+
+        conn = get_connection()
+        if not conn:
+            return jsonify({"success": False, "message": "Database connection failed"}), 500
+
+        cursor = conn.cursor()
+        insert_query = """
+        INSERT INTO service_history (Service_Date, Mileage, Last_Oil_Change, Notes, Car_plate)
+        VALUES (CURDATE(), %s, CURDATE(), %s, %s)
+        """
+        cursor.execute(insert_query, (mileage, notes, plate_number.upper()))
+        conn.commit()
+
+        return jsonify({
+            "success": True,
+            "message": f"Maintenance updated for {plate_number}"
+        })
+
+    except Exception as e:
+        logger.error(f"Error in update_car_maintenance: {e}")
+        if conn:
+            try: conn.rollback()
+            except: pass
+        return jsonify({
+            "success": False,
+            "message": "Internal server error"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+# ===============================
+# AFTER SERVICE FORM ROUTES - MECHANIC SESSION ONLY
+# ===============================
+
+@mechanic_bp.route("/after-service-form")
+def after_service_form():
+    """Serve the after-service form page"""
+    if not session.get("mechanic_logged_in"):
+        return redirect("/mechanic/login.html")
+    
+    # Get and validate plate number
+    plate_number = session.get('detected_plate', '').strip().upper()
+    
+    # Validate plate format
+    if not plate_number or not re.match(r'^[A-Z0-9]{4,12}$', plate_number):
+        return render_template("error.html", 
+                             message="Invalid or missing license plate"), 400
+    
+    # Verify plate exists in database
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT c.Car_plate, o.Owner_Name 
+            FROM car c 
+            LEFT JOIN owner o ON c.Owner_ID = o.Owner_ID 
+            WHERE c.Car_plate = %s
+        """, (plate_number,))
+        
+        car_exists = cursor.fetchone()
+        
+        if not car_exists:
+            return render_template("error.html", 
+                                 message=f"Car with plate {plate_number} not found in database"), 404
+        
+        # Log access for audit trail
+        logger.info(f"After-service form accessed for plate {plate_number} by user {session.get('mechanic_username')}")
+        
+        return render_template("after_service_form.html", 
+                             plate_number=plate_number,
+                             username=session.get("mechanic_username"),
+                             owner_name=car_exists['Owner_Name'])
+        
+    except Exception as e:
+        logger.error(f"Database error in after_service_form: {e}")
+        return render_template("error.html", 
+                             message="Database error occurred"), 500
+    finally:
+        _safe_close(cursor, conn)
+
+@mechanic_bp.route("/api/submit-after-service", methods=["POST"])
+@mechanic_login_required
+def submit_after_service():
+    """After-service form submission"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "No data provided"}), 400
+        
+        # Extract and validate data
+        plate_number = data.get('plate_number', '').strip().upper()
+        service_type = data.get('service_type', '')
+        mileage = data.get('mileage')
+        notes = data.get('notes', '')
+        next_service_date = data.get('next_service_date')
+        mechanic_notes = data.get('mechanic_notes', '')
+        
+        # Validate required fields
+        if not plate_number or not re.match(r'^[A-Z0-9]{4,12}$', plate_number):
+            return jsonify({"success": False, "message": "Invalid plate number"}), 400
+        
+        if not service_type:
+            return jsonify({"success": False, "message": "Service type is required"}), 400
+        
+        if not mileage or not isinstance(mileage, int) or mileage <= 0:
+            return jsonify({"success": False, "message": "Valid mileage is required"}), 400
+        
+        # Verify car exists and user has permission
+        conn = None
+        cursor = None
+        try:
+            conn = get_connection()
+            cursor = conn.cursor(dictionary=True)
+            
+            # Verify car exists
+            cursor.execute("SELECT Car_plate FROM car WHERE Car_plate = %s", (plate_number,))
+            if not cursor.fetchone():
+                return jsonify({"success": False, "message": "Car not found"}), 404
+            
+            # Insert service history
+            cursor.execute("""
+                INSERT INTO service_history 
+                (Service_Date, Mileage, Last_Oil_Change, Notes, Car_plate)
+                VALUES (CURDATE(), %s, CURDATE(), %s, %s)
+            """, (mileage, notes, plate_number))
+            
+            history_id = cursor.lastrowid
+            
+            # Update next oil change if provided
+            if next_service_date:
+                cursor.execute("""
+                    UPDATE car 
+                    SET Next_Oil_Change = %s 
+                    WHERE Car_plate = %s
+                """, (next_service_date, plate_number))
+            
+            conn.commit()
+            
+            # Log the service
+            logger.info(f"Service completed for plate {plate_number} by {session.get('mechanic_username')}. History ID: {history_id}")
+            
+            return jsonify({
+                "success": True,
+                "message": "Service record submitted successfully",
+                "service_history_id": history_id,
+                "plate_number": plate_number
+            })
+            
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            logger.error(f"Database error in submit_after_service: {e}")
+            return jsonify({
+                "success": False, 
+                "message": f"Database error: {str(e)}"
+            }), 500
+        finally:
+            _safe_close(cursor, conn)
+        
+    except Exception as e:
+        logger.error(f"Error submitting after-service form: {e}")
+        return jsonify({
+            "success": False, 
+            "message": f"Error submitting form: {str(e)}"
+        }), 500
+
+# ===============================
+# APPOINTMENTS API ROUTES - MECHANIC SESSION ONLY
+# ===============================
+
+@mechanic_bp.route("/api/appointments", methods=['GET'])
+@mechanic_login_required
+def get_all_appointments():
+    """Simple API to get all appointments"""
+    print("📅 DEBUG: Fetching appointments...")
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # SUPER SIMPLE query - just get basic appointment data
+        cursor.execute("SELECT * FROM appointment ORDER BY Date DESC, Time DESC")
+        
+        appointments = cursor.fetchall()
+        
+        print(f"✅ DEBUG: Found {len(appointments)} raw appointments")
+        
+        # Debug: print first appointment to see structure
+        if appointments:
+            print(f"📋 DEBUG: First appointment: {appointments[0]}")
+        
+        # Simple formatting
+        for appointment in appointments:
+            # Handle time formatting
+            if appointment.get('Time'):
+                if isinstance(appointment['Time'], timedelta):
+                    total_seconds = int(appointment['Time'].total_seconds())
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    appointment['Time'] = f"{hours:02d}:{minutes:02d}"
+                else:
+                    appointment['Time'] = str(appointment['Time'])
+            
+            # Handle date formatting
+            if appointment.get('Date') and hasattr(appointment['Date'], 'isoformat'):
+                appointment['Date'] = appointment['Date'].isoformat()
+        
+        return jsonify({
+            "success": True,
+            "data": appointments,
+            "total": len(appointments)
+        })
+        
+    except Exception as e:
+        print(f"❌ DEBUG: Appointments API error: {e}")
+        import traceback
+        print(f"❌ DEBUG: Full traceback: {traceback.format_exc()}")
+        return jsonify({
+            "success": False,
+            "message": f"Error loading appointments: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+@mechanic_bp.route("/api/appointments/<int:appointment_id>", methods=['GET'])
+@mechanic_login_required
+def get_appointment_details(appointment_id):
+    """Get detailed information for a specific appointment"""
+    print(f"📅 Fetching details for appointment #{appointment_id}...")
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get appointment details with car and owner information
+        cursor.execute("""
+            SELECT 
+                a.Appointment_ID,
+                a.Date,
+                a.Time,
+                a.Notes,
+                a.Car_plate,
+                c.Model as car_model,
+                c.Year as car_year,
+                c.VIN,
+                o.Owner_Name,
+                o.Owner_Email,
+                o.PhoneNUMB,
+                GROUP_CONCAT(s.Service_Type) as Scheduled_Services
+            FROM appointment a
+            LEFT JOIN car c ON a.Car_plate = c.Car_plate
+            LEFT JOIN owner o ON c.Owner_ID = o.Owner_ID
+            LEFT JOIN appointment_service aps ON a.Appointment_ID = aps.Appointment_ID
+            LEFT JOIN service s ON aps.Service_ID = s.Service_ID
+            WHERE a.Appointment_ID = %s
+            GROUP BY a.Appointment_ID
+        """, (appointment_id,))
+        
+        appointment = cursor.fetchone()
+        
+        if not appointment:
+            return jsonify({
+                "success": False,
+                "message": f"Appointment #{appointment_id} not found"
+            }), 404
+        
+        # Convert timedelta to string format
+        if appointment['Time'] and isinstance(appointment['Time'], timedelta):
+            total_seconds = int(appointment['Time'].total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            appointment['Time'] = f"{hours:02d}:{minutes:02d}"
+        
+        # Format date
+        if appointment['Date'] and hasattr(appointment['Date'], 'isoformat'):
+            appointment['Date'] = appointment['Date'].isoformat()
+        
+        # Format scheduled services
+        if appointment['Scheduled_Services']:
+            appointment['Scheduled_Services'] = appointment['Scheduled_Services'].split(',')
+        else:
+            appointment['Scheduled_Services'] = []
+        
+        print(f"✅ Found detailed information for appointment #{appointment_id}")
+        
+        return jsonify({
+            "success": True,
+            "data": appointment
+        })
+        
+    except Exception as e:
+        print(f"❌ Appointment details API error: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error loading appointment details: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+# ===============================
+# SERVICE COMPLETION ROUTE - MECHANIC SESSION ONLY
+# ===============================
+
+@mechanic_bp.route("/api/complete-service", methods=['POST'])
+@mechanic_login_required
+def complete_service():
+    """Complete service with STRICT mileage validation"""
+    print("🔧 Completing service with STRICT mileage validation...")
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "message": "No data provided"}), 400
+    
+    car_plate = data.get('car_plate', '').strip().upper()
+    mileage = data.get('mileage')
+    next_oil_change = data.get('next_oil_change')
+    notes = data.get('notes', '')
+    services_performed = data.get('services_performed', [])
+    
+    if not car_plate:
+        return jsonify({"success": False, "message": "Car plate is required"}), 400
+    
+    if not mileage:
+        return jsonify({"success": False, "message": "Mileage is required"}), 400
+    
+    # Convert to integer and validate
+    try:
+        mileage = int(mileage)
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "message": "Mileage must be a valid number"}), 400
+    
+    if mileage <= 0:
+        return jsonify({"success": False, "message": "Mileage must be greater than 0"}), 400
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # 1. Validate car exists
+        cursor.execute("SELECT Car_plate, Year FROM car WHERE Car_plate = %s", (car_plate,))
+        car = cursor.fetchone()
+        
+        if not car:
+            return jsonify({"success": False, "message": "Car not found"}), 404
+        
+        # 2. Get MAXIMUM mileage for this car plate
+        cursor.execute("""
+            SELECT MAX(Mileage) as max_mileage
+            FROM service_history 
+            WHERE Car_plate = %s
+        """, (car_plate,))
+        
+        result = cursor.fetchone()
+        max_mileage = result['max_mileage'] if result and result['max_mileage'] is not None else 0
+        
+        print(f"🔍 Mileage validation - New: {mileage:,}, Max Recorded: {max_mileage:,}, Car: {car_plate}")
+        
+        # 3. STRICT VALIDATION: Mileage must be greater than MAX recorded mileage
+        if max_mileage > 0 and mileage <= max_mileage:
+            error_msg = f"New mileage ({mileage:,} km) must be GREATER than maximum recorded mileage ({max_mileage:,} km)"
+            print(f"❌ MILEAGE VALIDATION FAILED: {error_msg}")
+            return jsonify({
+                "success": False, 
+                "message": error_msg
+            }), 400
+        
+        # 4. Additional validation: Check for unrealistic mileage jump
+        if max_mileage > 0:
+            mileage_increase = mileage - max_mileage
+            
+            # Get the date of the maximum mileage record
+            cursor.execute("""
+                SELECT Service_Date 
+                FROM service_history 
+                WHERE Car_plate = %s AND Mileage = %s
+                ORDER BY Service_Date DESC 
+                LIMIT 1
+            """, (car_plate, max_mileage))
+            
+            max_mileage_record = cursor.fetchone()
+            last_service_date = max_mileage_record['Service_Date'] if max_mileage_record else None
+            
+            days_since_last_service = 1  # Default to 1 day
+            
+            if last_service_date:
+                days_since_last_service = (datetime.now().date() - last_service_date).days
+                days_since_last_service = max(1, days_since_last_service)  # At least 1 day
+            
+            daily_mileage = mileage_increase / days_since_last_service
+            
+            # Flag unrealistic daily mileage (more than 1,000 km per day)
+            if daily_mileage > 1000:
+                warning_msg = f"Unrealistic mileage increase: {mileage_increase:,} km in {days_since_last_service} days ({daily_mileage:,.0f} km/day)"
+                print(f"⚠️ {warning_msg}")
+        
+        # 5. Validate reasonable mileage based on car age
+        car_year = car['Year'] or datetime.now().year
+        current_year = datetime.now().year
+        car_age = current_year - car_year
+        
+        # Reasonable maximum: 25,000 km per year + 50,000 base
+        reasonable_max = car_age * 25000 + 50000
+        
+        if mileage > reasonable_max:
+            warning_msg = f"High mileage for {car_year} vehicle: {mileage:,} km (expected max: {reasonable_max:,} km)"
+            print(f"⚠️ {warning_msg}")
+        
+        # 6. Create service history record
+        service_date = datetime.now().date()
+        
+        cursor.execute("""
+            INSERT INTO service_history (Service_Date, Mileage, Last_Oil_Change, Notes, Car_plate)
+            VALUES (%s, %s, CURDATE(), %s, %s)
+        """, (service_date, mileage, notes, car_plate))
+        
+        history_id = cursor.lastrowid
+        print(f"✅ Created service history record #{history_id} with mileage {mileage:,} km")
+        
+        # 7. Link services performed
+        if services_performed:
+            for service_id in services_performed:
+                cursor.execute("""
+                    INSERT INTO service_history_service (History_ID, Service_ID)
+                    VALUES (%s, %s)
+                """, (history_id, service_id))
+            print(f"✅ Linked {len(services_performed)} services to history record")
+        
+        # 8. Update next oil change if provided
+        if next_oil_change:
+            # Validate next oil change date is not in past
+            next_oil_date = datetime.strptime(next_oil_change, '%Y-%m-%d').date()
+            if next_oil_date < datetime.now().date():
+                return jsonify({"success": False, "message": "Next oil change date cannot be in the past"}), 400
+            
+            cursor.execute("""
+                UPDATE car 
+                SET Next_Oil_Change = %s 
+                WHERE Car_plate = %s
+            """, (next_oil_change, car_plate))
+            print(f"✅ Updated next oil change to {next_oil_change}")
+        
+        conn.commit()
+        
+        # Log the service completion
+        logger.info(f"Service completed for {car_plate} - Mileage: {mileage:,} km (previous max: {max_mileage:,} km) by {session.get('mechanic_username')}")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Service completed successfully for {car_plate}. Mileage updated from {max_mileage:,} km to {mileage:,} km.",
+            "service_history_id": history_id,
+            "mileage_recorded": mileage,
+            "previous_max_mileage": max_mileage
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"Error completing service: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error completing service: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+# ===============================
+# SERVICE HISTORY API ROUTES - MECHANIC SESSION ONLY
+# ===============================
+
+@mechanic_bp.route('/api/complete-services', methods=['GET'])
+@mechanic_login_required
+def get_complete_services():
+    """API endpoint to get complete service history"""
+    print("🔧 Fetching service history...")
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get service history with car and owner info
+        cursor.execute("""
+            SELECT 
+                sh.History_ID as Service_id,
+                sh.Service_Date,
+                sh.Mileage,
+                sh.Last_Oil_Change,
+                sh.Notes,
+                sh.Car_plate,
+                c.Model as car_model,
+                c.Year as car_year,
+                o.Owner_Name,
+                o.PhoneNUMB,
+                o.Owner_Email as Email
+            FROM service_history sh
+            LEFT JOIN car c ON sh.Car_plate = c.Car_plate
+            LEFT JOIN owner o ON c.Owner_ID = o.Owner_ID
+            ORDER BY sh.Service_Date DESC
+        """)
+        
+        services = cursor.fetchall()
+        
+        # Format dates for frontend
+        for service in services:
+            if service['Service_Date'] and hasattr(service['Service_Date'], 'isoformat'):
+                service['Service_Date'] = service['Service_Date'].isoformat()
+            
+            # Add Service_Type for frontend compatibility
+            service['Service_Type'] = 'Maintenance'
+        
+        print(f"✅ Found {len(services)} service records")
+        return jsonify({
+            "success": True,
+            "data": services,
+            "total": len(services)
+        })
+        
+    except Exception as e:
+        logger.error(f"Service history API error: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error loading service history: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+# ===============================
+# ERROR HANDLERS
+# ===============================
+
+@mechanic_bp.errorhandler(404)
+def not_found(error):
+    return jsonify({"success": False, "message": "Endpoint not found"}), 404
+
+@mechanic_bp.errorhandler(500)
+def internal_error(error):
+    return jsonify({"success": False, "message": "Internal server error"}), 500
+
+@mechanic_bp.errorhandler(401)
+def unauthorized(error):
+    return jsonify({"success": False, "message": "Unauthorized access"}), 401

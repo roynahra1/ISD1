@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISZ - Mechanic Login</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(45deg, #1a3a1a, #2c5c2c);
+            color: #fff;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h2 {
+            margin: 0 0 20px;
+            text-align: center;
+            color: #4CAF50;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #4CAF50;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        #msg {
+            margin-top: 15px;
+            text-align: center;
+            min-height: 20px;
+        }
+
+        .error {
+            color: #e74c3c;
+        }
+
+        .success {
+            color: #2ecc71;
+        }
+
+        .login-links {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .login-links a {
+            color: #4CAF50;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        .login-links a:hover {
+            text-decoration: underline;
+        }
+
+        .user-type-info {
+            background: rgba(76, 175, 80, 0.2);
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 14px;
+            border: 1px solid #4CAF50;
+        }
+
+        .mechanic-icon {
+            text-align: center;
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="login-card">
+            <div class="mechanic-icon">🔧</div>
+            <h2>ISZ Mechanic Portal</h2>
+            
+            <div class="user-type-info">
+                Currently logging in as: <strong>Mechanic</strong>
+            </div>
+
+            <div class="input-group">
+                <input id="username" placeholder="Mechanic Username" autocomplete="username">
+            </div>
+            
+            <div class="input-group">
+                <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+            </div>
+            
+            <button id="submit">Sign In as Mechanic</button>
+            
+            <div class="login-links">
+                <a href="/mechanic/signup.html">Create Mechanic Account</a>
+                <a href="/">Back to Home</a>
+                <a href="/login.html">Admin Login</a>
+            </div>
+            
+            <div id="msg"></div>
+        </div>
+    </div>
+
+    <script>
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const submitBtn = document.getElementById('submit');
+        const msgDiv = document.getElementById('msg');
+
+        // Debug function
+        function debugLog(message) {
+            console.log(`[MECHANIC LOGIN] ${message}`);
+        }
+
+        // Login function
+        submitBtn.addEventListener('click', async () => {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+
+            debugLog(`Login attempt - Username: ${username}`);
+
+            msgDiv.textContent = '';
+            msgDiv.className = '';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Signing in...';
+
+            try {
+                const response = await fetch('/mechanic/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password }),
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                debugLog(`Response status: ${response.status}, Data: ${JSON.stringify(data)}`);
+                
+                if (data.status === 'success') {
+                    msgDiv.className = 'success';
+                    msgDiv.textContent = 'Mechanic login successful! Redirecting...';
+                    
+                    // Clear form
+                    usernameInput.value = '';
+                    passwordInput.value = '';
+                    
+                    // Redirect to mechanic dashboard
+                    setTimeout(() => {
+                        const redirectUrl = data.redirect || '/mechanic/dashboard';
+                        debugLog(`Redirecting to: ${redirectUrl}`);
+                        window.location.href = redirectUrl;
+                    }, 1500);
+                } else {
+                    msgDiv.className = 'error';
+                    msgDiv.textContent = data.message || 'Mechanic login failed';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Sign In as Mechanic';
+                    debugLog(`Login failed: ${data.message}`);
+                }
+            } catch (error) {
+                console.error('Mechanic login error:', error);
+                msgDiv.className = 'error';
+                msgDiv.textContent = 'Error connecting to server';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign In as Mechanic';
+                debugLog(`Network error: ${error.message}`);
+            }
+        });
+
+        // Enter key support
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitBtn.click();
+            }
+        });
+
+        // Focus on username input on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            usernameInput.focus();
+            debugLog('Mechanic login page loaded');
+        });
+    </script>
+</body>
+</html>

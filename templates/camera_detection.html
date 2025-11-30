@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Plate Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        video {
+            width: 100%;
+            max-width: 500px;
+            border: 2px solid #333;
+            border-radius: 5px;
+            background: #000;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        #result {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 50px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        #loading { display: none; margin: 10px 0; }
+        .manual-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📷 License Plate Detection</h1>
+        
+        <div>
+            <video id="video" autoplay playsinline></video>
+        </div>
+
+        <div>
+            <button onclick="captureAndDetect()" id="captureBtn">Capture & Detect</button>
+        </div>
+
+        <div id="loading">Processing...</div>
+
+        <div id="result" class="info">
+            Allow camera access and click "Capture & Detect"
+        </div>
+
+        <div class="manual-section">
+            <h3>Manual Entry</h3>
+            <input type="text" id="manualPlate" placeholder="Enter plate number">
+            <button onclick="manualSearch()">Search</button>
+        </div>
+
+        <div id="carInfo" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+            <h3>Vehicle Information</h3>
+            <div id="carDetails"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
+        let stream = null;
+
+        // Initialize camera
+        async function initializeCamera() {
+            try {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('video').srcObject = stream;
+                document.getElementById('captureBtn').disabled = false;
+                document.getElementById('result').className = 'info';
+                document.getElementById('result').textContent = 'Camera ready - Click "Capture & Detect"';
+                
+            } catch (error) {
+                document.getElementById('result').className = 'error';
+                document.getElementById('result').textContent = 'Camera error: ' + error.message;
+            }
+        }
+
+        function captureAndDetect() {
+            if (!stream) {
+                alert('Camera not ready');
+                return;
+            }
+
+            const video = document.getElementById('video');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            showLoading(true);
+
+            canvas.toBlob(blob => {
+                const formData = new FormData();
+                formData.append('image', blob);
+
+                fetch(API_BASE + '/detect', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Server error: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    showLoading(false);
+                    if (data.success) {
+                        document.getElementById('result').className = 'success';
+                        document.getElementById('result').innerHTML = 
+                            `Plate: <strong>${data.plate_number}</strong><br>Confidence: ${(data.confidence * 100).toFixed(1)}%`;
+                        getCarInfo(data.plate_number);
+                    } else {
+                        document.getElementById('result').className = 'error';
+                        document.getElementById('result').textContent = data.message;
+                    }
+                })
+                .catch(error => {
+                    showLoading(false);
+                    document.getElementById('result').className = 'error';
+                    document.getElementById('result').textContent = 'Detection failed: ' + error.message;
+                });
+            }, 'image/jpeg');
+        }
+
+        function manualSearch() {
+            const plate = document.getElementById('manualPlate').value.trim().toUpperCase();
+            if (plate.length >= 4) {
+                getCarInfo(plate);
+            } else {
+                alert('Please enter a valid plate number');
+            }
+        }
+
+        function getCarInfo(plateNumber) {
+            showLoading(true);
+            
+            fetch(API_BASE + '/car-info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plate_number: plateNumber })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showLoading(false);
+                const carInfo = document.getElementById('carInfo');
+                const carDetails = document.getElementById('carDetails');
+                
+                if (data.success && data.car_info) {
+                    const info = data.car_info;
+                    carDetails.innerHTML = `
+                        <p><strong>Owner:</strong> ${info.owner_name || 'N/A'}</p>
+                        <p><strong>Model:</strong> ${info.model || 'N/A'}</p>
+                        <p><strong>Kilometers:</strong> ${info.kms || 'N/A'}</p>
+                        <p><strong>Last Oil Change:</strong> ${info.last_oil_change || 'N/A'}</p>
+                    `;
+                } else {
+                    carDetails.innerHTML = `<p>No vehicle found for ${plateNumber}</p>`;
+                }
+                carInfo.style.display = 'block';
+            })
+            .catch(error => {
+                showLoading(false);
+                alert('Error fetching car info');
+            });
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('captureBtn').disabled = show;
+        }
+
+        // Initialize camera on load
+        document.addEventListener('DOMContentLoaded', initializeCamera);
+    </script>
+</body>
+</html>

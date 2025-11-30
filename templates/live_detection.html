@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Plate Detection</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { margin-bottom: 10px; }
+    .camera-container {
+      position: relative;
+      display: inline-block;
+      margin: 10px 0;
+    }
+    video, canvas {
+      border: 1px solid #ccc;
+      margin-top: 10px;
+      max-width: 100%;
+      border-radius: 8px;
+    }
+    .focus-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 300px;
+      height: 150px;
+      border: 3px solid #28a745;
+      border-radius: 8px;
+      pointer-events: none;
+    }
+    button {
+      margin: 10px 5px;
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    button:hover { background: #0056b3; }
+    button:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 1.1em;
+      color: #333;
+      min-height: 60px;
+    }
+    #loading {
+      margin-top: 10px;
+      font-size: 1em;
+      color: #888;
+      display: none;
+    }
+    #updateForm {
+      display: none;
+      margin-top: 20px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    input, textarea {
+      width: 90%;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 1em;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    #manualBtn, #fetchBtn {
+      display: none;
+    }
+    .manual-input {
+      display: none;
+      margin: 20px auto;
+      max-width: 300px;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .camera-error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Live License Plate Detection</h1>
+
+  <div class="camera-container">
+    <video id="video" width="640" height="480" autoplay playsinline></video>
+    <div class="focus-overlay"></div>
+  </div>
+  <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+
+  <div>
+    <button onclick="captureAndSend()" id="detectBtn">Detect Plate</button>
+    <button onclick="fetchCarInfo()" id="fetchBtn">Fetch Car Info</button>
+    <button onclick="showManualInput()" id="manualBtn">Manual Entry</button>
+    <button onclick="resetUI()">Reset</button>
+  </div>
+
+  <div id="loading">Processing image...</div>
+  <div id="result">Point camera at license plate and click Detect Plate</div>
+
+  <!-- Manual Input Fallback -->
+  <div class="manual-input" id="manualInput">
+    <h3>Enter Plate Manually</h3>
+    <input type="text" id="manualPlate" placeholder="Enter license plate" maxlength="10">
+    <button onclick="useManualPlate()">Use This Plate</button>
+    <button onclick="hideManualInput()">Cancel</button>
+  </div>
+
+  <!-- Update Form -->
+  <form id="updateForm">
+    <h3>Update Car Info</h3>
+    <input type="text" id="plate" placeholder="Plate Number" readonly />
+    <input type="number" id="kms" placeholder="Current Kilometers" min="0" required />
+    <textarea id="notes" placeholder="Maintenance notes"></textarea>
+    <button type="submit">Update Info</button>
+  </form>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const resultDiv = document.getElementById('result');
+    const loading = document.getElementById('loading');
+    const fetchBtn = document.getElementById('fetchBtn');
+    const manualBtn = document.getElementById('manualBtn');
+    const detectBtn = document.getElementById('detectBtn');
+    const updateForm = document.getElementById('updateForm');
+    const manualInput = document.getElementById('manualInput');
+    
+    let detectedPlate = "";
+    let stream = null;
+
+    // API Configuration
+    const API_BASE = window.location.hostname === 'localhost' || 
+                     window.location.hostname === '127.0.0.1' 
+                     ? 'http://localhost:5000' 
+                     : '';
+
+    // Camera initialization
+    async function initializeCamera() {
+      try {
+        stopCamera();
+        
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Camera not supported");
+        }
+
+        // Check if secure context for mobile
+        const isSecure = window.location.protocol === 'https:' || 
+                        window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1';
+        
+        if (!isSecure) {
+          showCameraError("Camera requires HTTPS on mobile. Use manual entry.");
+          return;
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' } 
+        });
+        
+        video.srcObject = stream;
+        detectBtn.disabled = false;
+        
+      } catch (error) {
+        handleCameraError(error);
+      }
+    }
+
+    function handleCameraError(error) {
+      let errorMessage = "Camera access failed";
+      
+      switch (error.name) {
+        case 'NotAllowedError':
+          errorMessage = "Camera permission denied";
+          break;
+        case 'NotFoundError':
+          errorMessage = "No camera found";
+          break;
+        case 'NotSupportedError':
+          errorMessage = "Camera not supported";
+          break;
+        default:
+          errorMessage = "Cannot access camera";
+      }
+      
+      showCameraError(errorMessage);
+    }
+
+    function showCameraError(message) {
+      resultDiv.innerHTML = `<div class="camera-error">${message}</div>`;
+      detectBtn.disabled = true;
+      manualBtn.style.display = 'inline-block';
+    }
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+    }
+
+    function captureAndSend() {
+      if (!stream) {
+        resultDiv.innerHTML = "Camera not available";
+        return;
+      }
+
+      loading.style.display = 'block';
+      resultDiv.innerHTML = '';
+      detectBtn.disabled = true;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(blob => {
+        const file = new File([blob], 'plate.jpg', { type: 'image/jpeg' });
+        const formData = new FormData();
+        formData.append('image', file);
+
+        fetch(`${API_BASE}/detect`, {
+          method: 'POST',
+          body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+          loading.style.display = 'none';
+          detectBtn.disabled = false;
+
+          if (data.success && data.plate_number) {
+            detectedPlate = data.plate_number;
+            resultDiv.innerHTML = `Plate: <strong>${detectedPlate}</strong> (${(data.confidence * 100).toFixed(1)}% confidence)`;
+            fetchBtn.style.display = 'inline-block';
+            manualBtn.style.display = 'none';
+          } else {
+            resultDiv.innerHTML = data.message || 'No plate detected';
+            manualBtn.style.display = 'inline-block';
+          }
+        })
+        .catch(err => {
+          loading.style.display = 'none';
+          detectBtn.disabled = false;
+          resultDiv.innerHTML = "Detection failed";
+        });
+      }, 'image/jpeg');
+    }
+
+    function fetchCarInfo() {
+      if (!detectedPlate) return;
+      
+      loading.style.display = 'block';
+
+      fetch(`${API_BASE}/car-info`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plate_number: detectedPlate })
+      })
+      .then(res => res.json())
+      .then(data => {
+        loading.style.display = 'none';
+        
+        if (data.success && data.car_info) {
+          const info = data.car_info;
+          let infoHTML = `<br><strong>Car Info:</strong><br>Owner: ${info.owner_name || 'N/A'}<br>Model: ${info.model || 'N/A'}`;
+          
+          if (info.kms) infoHTML += `<br>Kilometers: ${info.kms}`;
+          if (info.last_oil_change) infoHTML += `<br>Last Oil Change: ${info.last_oil_change}`;
+          if (info.notes) infoHTML += `<br>Notes: ${info.notes}`;
+          
+          resultDiv.innerHTML += infoHTML;
+          document.getElementById('plate').value = detectedPlate;
+          updateForm.style.display = 'block';
+        } else {
+          resultDiv.innerHTML += '<br>No record found';
+          manualBtn.style.display = 'inline-block';
+        }
+      })
+      .catch(err => {
+        loading.style.display = 'none';
+        resultDiv.innerHTML += '<br>Error fetching info';
+      });
+    }
+
+    function showManualInput() {
+      manualInput.style.display = 'block';
+      manualBtn.style.display = 'none';
+    }
+
+    function hideManualInput() {
+      manualInput.style.display = 'none';
+      manualBtn.style.display = 'inline-block';
+      initializeCamera();
+    }
+
+    function useManualPlate() {
+      const manualPlate = document.getElementById('manualPlate').value.trim().toUpperCase();
+      if (manualPlate && manualPlate.length >= 4) {
+        detectedPlate = manualPlate;
+        resultDiv.innerHTML = `Manual Plate: <strong>${detectedPlate}</strong>`;
+        fetchBtn.style.display = 'inline-block';
+        manualInput.style.display = 'none';
+        document.getElementById('manualPlate').value = '';
+      } else {
+        alert("Please enter a valid plate number");
+      }
+    }
+
+    function resetUI() {
+      resultDiv.innerHTML = "Point camera at license plate and click Detect Plate";
+      updateForm.style.display = 'none';
+      fetchBtn.style.display = 'none';
+      manualBtn.style.display = 'none';
+      manualInput.style.display = 'none';
+      detectedPlate = "";
+      initializeCamera();
+    }
+
+    updateForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const kms = document.getElementById('kms').value;
+      
+      if (!kms || kms <= 0) {
+        alert("Please enter valid kilometers");
+        return;
+      }
+
+      const data = {
+        plate_number: document.getElementById('plate').value,
+        kms: parseInt(kms),
+        notes: document.getElementById('notes').value
+      };
+
+      fetch(`${API_BASE}/update-car`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(response => {
+        alert(response.message);
+        if (response.success) {
+          updateForm.reset();
+          updateForm.style.display = 'none';
+        }
+      })
+      .catch(err => {
+        alert("Update failed");
+      });
+    });
+
+    // Initialize camera on load
+    initializeCamera();
+
+    // Handle page visibility
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) {
+        stopCamera();
+      } else {
+        initializeCamera();
+      }
+    });
+  </script>
+</body>
+</html>

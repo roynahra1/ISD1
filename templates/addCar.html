@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Add Car - ISD System</title>
+  <style>
+    body {
+      background: #1a1a1a;
+      color: #fff;
+      font-family: sans-serif;
+      padding: 40px;
+      margin: 0;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: #2c2c2c;
+      padding: 30px;
+      border-radius: 8px;
+      border: 1px solid #3498db;
+    }
+    h2 {
+      text-align: center;
+      color: #3498db;
+      margin-bottom: 30px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+      color: #ecf0f1;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 20px;
+      border-radius: 6px;
+      border: 2px solid #3498db;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #2980b9;
+      background: rgba(255,255,255,0.15);
+      box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+    }
+    input::placeholder, textarea::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #3498db;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 600;
+    }
+    button:hover {
+      background: #2980b9;
+      transform: translateY(-2px);
+    }
+    button:disabled {
+      background: #7f8c8d;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .form-section {
+      background: rgba(52, 152, 219, 0.1);
+      padding: 20px;
+      border-radius: 6px;
+      margin: 20px 0;
+      border-left: 4px solid #3498db;
+    }
+    .form-section h3 {
+      color: #3498db;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #3498db;
+      padding-bottom: 10px;
+    }
+    #newOwnerFields {
+      display: none;
+    }
+    #msg {
+      margin-top: 15px;
+      padding: 15px;
+      text-align: center;
+      font-weight: bold;
+      border-radius: 6px;
+      display: none;
+      transition: opacity 0.3s ease;
+    }
+    .msg-success {
+      background: #27ae60;
+      color: white;
+      display: block;
+    }
+    .msg-error {
+      background: #e74c3c;
+      color: white;
+      display: block;
+    }
+    .back-btn {
+      background: #95a5a6;
+      margin-bottom: 20px;
+      width: auto;
+      padding: 10px 20px;
+    }
+    .back-btn:hover {
+      background: #7f8c8d;
+    }
+    .info-banner {
+      background: rgba(52, 152, 219, 0.2);
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      border-left: 4px solid #3498db;
+      text-align: center;
+    }
+    .session-plate-notice {
+      background: rgba(46, 204, 113, 0.2);
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      border-left: 4px solid #2ecc71;
+      font-size: 14px;
+    }
+    input[readonly] {
+      background: rgba(52, 152, 219, 0.2);
+      border-color: #2ecc71;
+      color: #2ecc71;
+      font-weight: bold;
+    }
+    .form-row {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .form-row .form-group {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🚗 Add New Car</h2>
+    
+    <div class="info-banner">
+      <strong>Complete Vehicle Registration</strong><br>
+      Fill in all vehicle and owner details below.
+    </div>
+
+    <!-- Session Plate Notice -->
+    <div id="sessionPlateNotice" class="session-plate-notice" style="display: none;">
+      <strong>📸 Plate Detected Automatically</strong><br>
+      License plate was detected and pre-filled. This field cannot be changed.
+    </div>
+
+    <!-- Add Car Form Section -->
+    <div>
+      <button onclick="goBack()" class="back-btn">← Back</button>
+      <form id="addCarForm">
+        
+        <!-- Vehicle Information Section -->
+        <div class="form-section">
+          <h3>🚗 Vehicle Information</h3>
+          
+          <label for="car_plate">License Plate *</label>
+          <input type="text" id="car_plate" name="car_plate" placeholder="e.g. A123456" required />
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="model">Model *</label>
+              <input type="text" id="model" name="model" placeholder="e.g. Toyota Corolla" required />
+            </div>
+            <div class="form-group">
+              <label for="year">Year *</label>
+              <input type="number" id="year" name="year" placeholder="e.g. 2020" min="1900" max="2099" required />
+            </div>
+          </div>
+
+          <label for="vin">VIN (Vehicle Identification Number) *</label>
+          <input type="text" id="vin" name="vin" placeholder="17-character VIN" maxlength="17" required />
+
+          <label for="next_oil_change">Next Oil Change Date</label>
+          <input type="date" id="next_oil_change" name="next_oil_change" />
+        </div>
+
+        <!-- Owner Information Section -->
+        <div class="form-section">
+          <h3>👤 Owner Information</h3>
+          
+          <label for="owner_type">Owner Type *</label>
+          <select id="owner_type" name="owner_type" required>
+            <option value="">Select Owner Type</option>
+            <option value="existing">Existing Owner</option>
+            <option value="new">New Owner</option>
+          </select>
+
+          <!-- Existing Owner Selection -->
+          <div id="existingOwnerSection">
+            
+           <label for="PhoneNUMB">Phone Number *</label>
+<input type="text" id="PhoneNUMB" name="PhoneNUMB" placeholder="e.g. +96170123456" required />
+          </div>
+
+          <!-- New Owner Fields -->
+          <div id="newOwnerFields">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="owner_name">Owner Name *</label>
+                <input type="text" id="owner_name" name="owner_name" placeholder="e.g. John Doe" />
+              </div>
+              <div class="form-group">
+                <label for="owner_email">Owner Email</label>
+                <input type="email" id="owner_email" name="owner_email" placeholder="e.g. john@example.com" />
+              </div>
+            </div>
+            
+            <label for="new_owner_phone">Owner Phone Number *</label>
+            <input type="text" id="new_owner_phone" name="new_owner_phone" placeholder="e.g. +96170123456" />
+          </div>
+        </div>
+
+        <!-- Initial Service Information Section -->
+        <div class="form-section">
+          <h3>🛠️ Initial Service Information</h3>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="current_mileage">Current Mileage</label>
+              <input type="number" id="current_mileage" name="current_mileage" placeholder="e.g. 50000" min="0" />
+            </div>
+            <div class="form-group">
+              <label for="last_service_date">Last Service Date</label>
+              <input type="date" id="last_service_date" name="last_service_date" />
+            </div>
+          </div>
+
+          <label for="service_notes">Service Notes</label>
+          <textarea id="service_notes" name="service_notes" placeholder="Any initial service notes or observations..." rows="3"></textarea>
+        </div>
+
+        <button type="submit" id="submitBtn">Add Car to Database</button>
+        <div id="msg"></div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+       // DOM Elements
+    const carPlateInput = document.getElementById("car_plate");
+    const vinInput = document.getElementById("vin");
+    const yearInput = document.getElementById("year");
+    const ownerTypeSelect = document.getElementById("owner_type");
+    const newOwnerFields = document.getElementById("newOwnerFields");
+    const sessionPlateNotice = document.getElementById("sessionPlateNotice");
+    const msg = document.getElementById("msg");
+    const submitBtn = document.getElementById("submitBtn");
+
+    let isSessionPlate = false;
+
+    // Debug function
+    function debugLog(message) {
+      console.log(`[CAR SYSTEM] ${message}`);
+    }
+
+    // Get plate from session (no URL parameters)
+    async function initializePlateFromSession() {
+      try {
+        debugLog("Checking for plate in session...");
+        const response = await fetch('/car/stored-plate');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.plate && data.has_plate) {
+            carPlateInput.value = data.plate.toUpperCase();
+            carPlateInput.readOnly = true;
+            sessionPlateNotice.style.display = 'block';
+            isSessionPlate = true;
+            debugLog(`Plate from session: ${data.plate}`);
+          } else {
+            debugLog("No plate found in session");
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching session plate:', error);
+        debugLog("Error checking session plate");
+      }
+    }
+
+    // ─── Form Validation and Submission ───
+    
+    // Car Plate: 1 letter + up to 6 digits (only if not from session)
+    carPlateInput.addEventListener("input", () => {
+      if (isSessionPlate) return; // Don't modify session plates
+      
+      let value = carPlateInput.value.toUpperCase();
+      const match = value.match(/^([A-Z]?)(\d{0,6})/);
+      carPlateInput.value = match ? (match[1] || "") + (match[2] || "") : "";
+    });
+
+    // VIN: Only letters and digits, max 17
+    vinInput.addEventListener("input", () => {
+      vinInput.value = vinInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 17);
+    });
+
+    // Year: Digits only, max 4
+    yearInput.addEventListener("input", () => {
+      yearInput.value = yearInput.value.replace(/\D/g, "").slice(0, 4);
+    });
+
+    // Owner Type Toggle
+    ownerTypeSelect.addEventListener("change", () => {
+      const isNewOwner = ownerTypeSelect.value === "new";
+      newOwnerFields.style.display = isNewOwner ? "block" : "none";
+      
+      // Update required fields for new owner
+      const ownerNameInput = document.getElementById("owner_name");
+      const ownerEmailInput = document.getElementById("owner_email");
+      
+      if (isNewOwner) {
+        ownerNameInput.setAttribute("required", "true");
+        ownerEmailInput.setAttribute("required", "true");
+      } else {
+        ownerNameInput.removeAttribute("required");
+        ownerEmailInput.removeAttribute("required");
+      }
+    });
+
+    // Auto-Capitalize Owner Name
+    const ownerNameInput = document.getElementById("owner_name");
+    ownerNameInput.addEventListener("blur", () => {
+      ownerNameInput.value = ownerNameInput.value
+        .toLowerCase()
+        .replace(/\b\w/g, c => c.toUpperCase());
+    });
+
+    // Form Submission
+    document.getElementById("addCarForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+
+      const carPlate = formData.get("car_plate").toUpperCase();
+      if (!/^[A-Z]{1}[0-9]{1,6}$/.test(carPlate))  {
+        showMessage("Car plate must start with a letter followed by 1-6 digits", "error");
+        return;
+      }
+
+      const vin = formData.get("vin").toUpperCase();
+      if (vin.length !== 17) {
+        showMessage("VIN must be exactly 17 characters", "error");
+        return;
+      }
+
+      const year = parseInt(formData.get("year"));
+      const currentYear = new Date().getFullYear();
+      if (isNaN(year) || year < 1900 || year > currentYear) {
+        showMessage(`Year must be between 1900 and ${currentYear}`, "error");
+        return;
+      }
+
+      const ownerType = formData.get("owner_type");
+      const phoneNumber = formData.get("PhoneNUMB");
+      
+      if (ownerType === "new") {
+        const ownerName = formData.get("owner_name");
+        const ownerEmail = formData.get("owner_email");
+        
+        if (!ownerName || !ownerEmail) {
+          showMessage("Owner name and email are required for new owners", "error");
+          return;
+        }
+        
+        if (!isValidEmail(ownerEmail)) {
+          showMessage("Please enter a valid email address", "error");
+          return;
+        }
+      }
+
+      if (!phoneNumber) {
+        showMessage("Phone number is required", "error");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Adding Car...";
+
+      try {
+        debugLog(`Submitting car data: ${carPlate}`);
+        
+        // Prepare data for JSON submission
+        const submissionData = {
+          car_plate: carPlate,
+          model: formData.get("model"),
+          year: year,
+          vin: vin,
+          next_oil_change: formData.get("next_oil_change") || null,
+          owner_type: ownerType,
+          PhoneNUMB: phoneNumber,
+          current_mileage: formData.get("current_mileage") || 0,
+          last_service_date: formData.get("last_service_date") || null,
+          service_notes: formData.get("service_notes") || "Initial car registration"
+        };
+
+        if (ownerType === "new") {
+          submissionData.owner_name = formData.get("owner_name");
+          submissionData.owner_email = formData.get("owner_email");
+        }
+
+        const res = await fetch("/car/add", {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(submissionData)
+        });
+        
+        const result = await res.json();
+        debugLog(`Submit response: ${JSON.stringify(result)}`);
+        
+        if (result.status === "success") {
+          showMessage("✅ " + result.message, "success");
+          
+          // Clear session plate if it was from session
+          if (isSessionPlate) {
+            await fetch('/car/clear-plate', { method: 'POST' });
+          }
+          
+          // Clear form on success
+          setTimeout(() => {
+            resetForm();
+            // Optionally redirect or show success message longer
+          }, 2000);
+        } else {
+          showMessage("❌ " + result.message, "error");
+        }
+      } catch (err) {
+        console.error("Submit error:", err);
+        showMessage("❌ Submission failed. Please check your connection and try again.", "error");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Add Car to Database";
+      }
+    });
+
+    // ─── Helper Functions ───
+    function showMessage(message, type) {
+      msg.textContent = message;
+      msg.className = `msg-${type}`;
+      msg.style.display = "block";
+      msg.scrollIntoView({ behavior: "smooth", block: "center" });
+      
+      // Auto-hide success messages after 5 seconds
+      if (type === "success") {
+        setTimeout(() => {
+          msg.style.display = "none";
+        }, 5000);
+      }
+    }
+
+    function resetForm() {
+      document.getElementById("addCarForm").reset();
+      newOwnerFields.style.display = "none";
+      sessionPlateNotice.style.display = "none";
+      carPlateInput.readOnly = false;
+      isSessionPlate = false;
+    }
+
+    function isValidEmail(email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email);
+    }
+
+    function goBack() {
+      if (document.referrer) {
+        window.history.back();
+      } else {
+        window.location.href = "/license-detection";
+      }
+    }
+
+    // Enter key support for form submission
+    document.addEventListener("keypress", (e) => {
+      if (e.key === "Enter" && !e.target.matches("textarea")) {
+        e.preventDefault();
+        // Don't auto-submit on enter, let user click the button
+      }
+    });
+
+    // Initialize when page loads
+    document.addEventListener("DOMContentLoaded", function() {
+      debugLog("Add car form loaded");
+      initializePlateFromSession(); // Auto-fill plate from session if available
+      carPlateInput.focus();
+    });
+</script>
+</body>
+</html>

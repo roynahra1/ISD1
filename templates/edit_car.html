@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Car Information</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+            font-size: 2.2em;
+        }
+        
+        .form-section {
+            margin-bottom: 25px;
+            padding: 25px;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            background: #f8f9fa;
+        }
+        
+        .form-section h2 {
+            margin-top: 0;
+            color: #444;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+            font-size: 1.1em;
+        }
+        
+        .required:after {
+            content: " *";
+            color: #e74c3c;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 14px;
+            font-size: 1em;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
+        }
+        
+        .btn {
+            padding: 16px 32px;
+            font-size: 1.1em;
+            cursor: pointer;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            min-width: 180px;
+            font-weight: bold;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        
+        .btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #00b09b, #96c93d);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #495057);
+        }
+        
+        .form-actions {
+            text-align: center;
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .plate-display {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        #message {
+            margin: 20px 0;
+            padding: 0;
+            text-align: center;
+        }
+        
+        .success { 
+            background: #d4edda; 
+            color: #155724; 
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #28a745;
+            font-size: 1.1em;
+        }
+        
+        .error { 
+            background: #f8d7da; 
+            color: #721c24; 
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #dc3545;
+            font-size: 1.1em;
+        }
+        
+        .warning { 
+            background: #fff3cd; 
+            color: #856404; 
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #ffc107;
+            font-size: 1.1em;
+        }
+        
+        .info { 
+            background: #d1ecf1; 
+            color: #0c5460; 
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #17a2b8;
+            font-size: 1.1em;
+        }
+        
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .input-error {
+            border-color: #e74c3c !important;
+            background-color: #fdf2f2 !important;
+        }
+        
+        .input-success {
+            border-color: #27ae60 !important;
+            background-color: #f2fdf2 !important;
+        }
+        
+        .readonly-field {
+            background-color: #e9ecef !important;
+            border-color: #ced4da !important;
+            color: #495057 !important;
+            cursor: not-allowed !important;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 20px;
+                border-radius: 15px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .form-section {
+                padding: 20px;
+            }
+            
+            .btn {
+                width: 100%;
+                margin: 8px 0;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✏️ Edit Car Information</h1>
+        
+        <!-- License Plate Display -->
+        <div class="plate-display">
+            🚗 Editing Vehicle: <span id="currentPlate">Loading...</span>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading">
+            <div class="loading-spinner"></div>
+            <div id="loadingText">Loading car information...</div>
+        </div>
+
+        <!-- Car Information Section -->
+        <div class="form-section">
+            <h2>📋 Vehicle Information</h2>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="car_plate" class="required">License Plate</label>
+                    <input type="text" id="car_plate" name="car_plate" readonly 
+                           class="readonly-field">
+                </div>
+                
+                <div class="form-group">
+                    <label for="vin" class="required">VIN Number</label>
+                    <input type="text" id="vin" name="vin" maxlength="17" 
+                           placeholder="17-character VIN" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="model" class="required">Car Model</label>
+                    <input type="text" id="model" name="model" 
+                           placeholder="e.g., Toyota Corolla" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="year" class="required">Manufacturing Year</label>
+                    <input type="number" id="year" name="year" min="1900" max="2030" 
+                           placeholder="e.g., 2020" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="next_oil_change">Next Oil Change Due</label>
+                <input type="date" id="next_oil_change" name="next_oil_change">
+                <small style="color: #666;">Optional - set the next scheduled oil change</small>
+            </div>
+        </div>
+        
+        <!-- Owner Information Section -->
+        <div class="form-section">
+            <h2>👤 Owner Information</h2>
+            
+            <div class="form-group">
+                <label for="owner_name" class="required">Owner Name</label>
+                <input type="text" id="owner_name" name="owner_name" 
+                       placeholder="Full name of the owner" required>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="owner_email">Owner Email</label>
+                    <input type="email" id="owner_email" name="owner_email" 
+                           placeholder="owner@example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label for="owner_phone" class="required">Owner Phone</label>
+                    <input type="tel" id="owner_phone" name="owner_phone" 
+                           placeholder="+961123456" required>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Message Display -->
+        <div id="message"></div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <button type="button" id="updateBtn" class="btn btn-success">💾 Update Information</button>
+            <button type="button" id="backBtn" class="btn btn-secondary">← Back to Service Form</button>
+            <button type="button" id="resetBtn" class="btn btn-warning">🔄 Reset Changes</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const carPlateInput = document.getElementById('car_plate');
+        const vinInput = document.getElementById('vin');
+        const modelInput = document.getElementById('model');
+        const yearInput = document.getElementById('year');
+        const nextOilChangeInput = document.getElementById('next_oil_change');
+        const ownerNameInput = document.getElementById('owner_name');
+        const ownerEmailInput = document.getElementById('owner_email');
+        const ownerPhoneInput = document.getElementById('owner_phone');
+        const updateBtn = document.getElementById('updateBtn');
+        const backBtn = document.getElementById('backBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const messageDiv = document.getElementById('message');
+        const loadingDiv = document.getElementById('loading');
+        const currentPlateSpan = document.getElementById('currentPlate');
+        const loadingText = document.getElementById('loadingText');
+
+        // Store original values for reset
+        let originalValues = {};
+        let currentPlateNumber = '';
+
+        // Initialize form
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load car information from session
+            loadCarInfoFromSession();
+        });
+
+        // Load car information from session
+        function loadCarInfoFromSession() {
+            showLoading(true, 'Loading vehicle information...');
+            clearMessage();
+
+            // First, we need to get the plate number from the backend session
+            // We'll do this by making an API call that will return the car info
+            fetch('/mechanic/api/car/session-info')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('No vehicle selected for editing');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success && data.car_info) {
+                        currentPlateNumber = data.car_info.Car_plate;
+                        populateForm(data.car_info);
+                        showMessage('Vehicle information loaded successfully!', 'success');
+                    } else {
+                        throw new Error(data.message || 'Failed to load vehicle information');
+                    }
+                })
+                .catch(error => {
+                    showLoading(false);
+                    showMessage(`Error: ${error.message}`, 'error');
+                    disableForm();
+                    
+                    // Show specific message for no vehicle selected
+                    if (error.message.includes('No vehicle selected')) {
+                        showMessage('Please select a vehicle to edit first.', 'warning');
+                        backBtn.textContent = '← Select Vehicle';
+                    }
+                });
+        }
+
+        // Alternative: Direct API call with session validation
+        function loadCarInfoDirect() {
+            showLoading(true, 'Loading vehicle information...');
+            clearMessage();
+
+            // We'll use a generic endpoint that uses session data
+            fetch('/mechanic/api/car/session-car-info')
+                .then(response => {
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            throw new Error('No vehicle selected for editing');
+                        }
+                        throw new Error('Failed to load vehicle information');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    showLoading(false);
+                    
+                    if (data.success && data.car_info) {
+                        currentPlateNumber = data.car_info.Car_plate;
+                        populateForm(data.car_info);
+                        showMessage('Vehicle information loaded successfully!', 'success');
+                    } else {
+                        throw new Error(data.message || 'Failed to load vehicle information');
+                    }
+                })
+                .catch(error => {
+                    showLoading(false);
+                    showMessage(`Error: ${error.message}`, 'error');
+                    disableForm();
+                    
+                    if (error.message.includes('No vehicle selected')) {
+                        showMessage('Please select a vehicle to edit first.', 'warning');
+                        backBtn.textContent = '← Select Vehicle';
+                    }
+                });
+        }
+
+        // Populate form with car data
+        function populateForm(carInfo) {
+            // Store original values
+            originalValues = {
+                vin: carInfo.VIN || '',
+                model: carInfo.Model || '',
+                year: carInfo.Year || '',
+                next_oil_change: carInfo.Next_Oil_Change || '',
+                owner_name: carInfo.Owner_Name || '',
+                owner_email: carInfo.Owner_Email || '',
+                owner_phone: carInfo.PhoneNUMB || ''
+            };
+
+            // Populate form fields
+            currentPlateSpan.textContent = carInfo.Car_plate;
+            carPlateInput.value = carInfo.Car_plate;
+            vinInput.value = originalValues.vin;
+            modelInput.value = originalValues.model;
+            yearInput.value = originalValues.year;
+            
+            // Format date for input
+            if (originalValues.next_oil_change) {
+                const date = new Date(originalValues.next_oil_change);
+                nextOilChangeInput.value = date.toISOString().split('T')[0];
+            } else {
+                nextOilChangeInput.value = '';
+            }
+            
+            ownerNameInput.value = originalValues.owner_name;
+            ownerEmailInput.value = originalValues.owner_email;
+            ownerPhoneInput.value = originalValues.owner_phone;
+
+            // Enable form
+            enableForm();
+        }
+
+        // Update car information
+        updateBtn.addEventListener('click', function() {
+            updateCarInfo();
+        });
+
+        function updateCarInfo() {
+            if (!currentPlateNumber) {
+                showMessage('No vehicle selected for editing', 'error');
+                return;
+            }
+
+            const formData = {
+                model: modelInput.value.trim(),
+                year: parseInt(yearInput.value),
+                vin: vinInput.value.trim(),
+                next_oil_change: nextOilChangeInput.value || null,
+                owner_name: ownerNameInput.value.trim(),
+                owner_email: ownerEmailInput.value.trim(),
+                owner_phone: ownerPhoneInput.value.trim()
+            };
+
+            // Validation
+            if (!validateForm(formData)) {
+                return;
+            }
+
+            showLoading(true, 'Updating vehicle information...');
+            clearMessage();
+
+            fetch(`/mechanic/api/car/${currentPlateNumber}/update`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                showLoading(false);
+                
+                if (data.success) {
+                    showMessage(`✅ ${data.message}`, 'success');
+                    // Update original values
+                    originalValues = { ...formData };
+                    // Update next_oil_change format
+                    originalValues.next_oil_change = formData.next_oil_change;
+                } else {
+                    showMessage(`❌ ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                showLoading(false);
+                showMessage('Error updating vehicle information. Please try again.', 'error');
+            });
+        }
+
+        // Form validation
+        function validateForm(formData) {
+            let isValid = true;
+
+            // Clear previous errors
+            clearErrorStyling();
+
+            if (!formData.model) {
+                showMessage('Car model is required', 'error');
+                modelInput.classList.add('input-error');
+                modelInput.focus();
+                isValid = false;
+            }
+
+            if (!formData.year || formData.year < 1900 || formData.year > 2030) {
+                showMessage('Please enter a valid manufacturing year (1900-2030)', 'error');
+                yearInput.classList.add('input-error');
+                yearInput.focus();
+                isValid = false;
+            }
+
+            if (!formData.vin || formData.vin.length !== 17) {
+                showMessage('VIN must be exactly 17 characters', 'error');
+                vinInput.classList.add('input-error');
+                vinInput.focus();
+                isValid = false;
+            }
+
+            if (!formData.owner_name) {
+                showMessage('Owner name is required', 'error');
+                ownerNameInput.classList.add('input-error');
+                ownerNameInput.focus();
+                isValid = false;
+            }
+
+            if (!formData.owner_phone) {
+                showMessage('Owner phone number is required', 'error');
+                ownerPhoneInput.classList.add('input-error');
+                ownerPhoneInput.focus();
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        // Reset form to original values
+        resetBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to reset all changes?')) {
+                resetForm();
+            }
+        });
+
+        function resetForm() {
+            vinInput.value = originalValues.vin;
+            modelInput.value = originalValues.model;
+            yearInput.value = originalValues.year;
+            
+            if (originalValues.next_oil_change) {
+                const date = new Date(originalValues.next_oil_change);
+                nextOilChangeInput.value = date.toISOString().split('T')[0];
+            } else {
+                nextOilChangeInput.value = '';
+            }
+            
+            ownerNameInput.value = originalValues.owner_name;
+            ownerEmailInput.value = originalValues.owner_email;
+            ownerPhoneInput.value = originalValues.owner_phone;
+            
+            clearErrorStyling();
+            clearMessage();
+            showMessage('Form reset to original values', 'info');
+        }
+
+        // Back button - return to service form
+        backBtn.addEventListener('click', function() {
+            // Clear the edit session
+            fetch('/mechanic/api/clear-edit-car', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(() => {
+                window.location.href = '/mechanic/after-service-form';
+            })
+            .catch(() => {
+                window.location.href = '/mechanic/after-service-form';
+            });
+        });
+
+        // Utility Functions
+        function showMessage(text, type) {
+            messageDiv.innerHTML = `<div class="${type}">${text}</div>`;
+        }
+
+        function clearMessage() {
+            messageDiv.innerHTML = '';
+        }
+
+        function showLoading(show, text = 'Loading...') {
+            loadingDiv.style.display = show ? 'block' : 'none';
+            loadingText.textContent = text;
+            updateBtn.disabled = show;
+            resetBtn.disabled = show;
+            backBtn.disabled = show;
+        }
+
+        function disableForm() {
+            const inputs = document.querySelectorAll('input:not([readonly])');
+            inputs.forEach(input => input.disabled = true);
+            updateBtn.disabled = true;
+            resetBtn.disabled = true;
+        }
+
+        function enableForm() {
+            const inputs = document.querySelectorAll('input:not([readonly])');
+            inputs.forEach(input => input.disabled = false);
+            updateBtn.disabled = false;
+            resetBtn.disabled = false;
+            backBtn.disabled = false;
+        }
+
+        function clearErrorStyling() {
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach(input => input.classList.remove('input-error'));
+        }
+
+        // Real-time validation
+        vinInput.addEventListener('input', function() {
+            if (this.value.length === 17) {
+                this.classList.add('input-success');
+                this.classList.remove('input-error');
+            } else {
+                this.classList.remove('input-success');
+            }
+        });
+
+        // Prevent past dates for next oil change
+        nextOilChangeInput.addEventListener('focus', function() {
+            const today = new Date().toISOString().split('T')[0];
+            this.setAttribute('min', today);
+        });
+
+        // Confirm before leaving if there are unsaved changes
+        window.addEventListener('beforeunload', function(e) {
+            if (hasUnsavedChanges()) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        function hasUnsavedChanges() {
+            const currentNextOilChange = nextOilChangeInput.value ? 
+                new Date(nextOilChangeInput.value).toISOString().split('T')[0] : 
+                '';
+
+            const originalNextOilChange = originalValues.next_oil_change ? 
+                new Date(originalValues.next_oil_change).toISOString().split('T')[0] : 
+                '';
+
+            return (
+                vinInput.value !== originalValues.vin ||
+                modelInput.value !== originalValues.model ||
+                yearInput.value !== originalValues.year.toString() ||
+                currentNextOilChange !== originalNextOilChange ||
+                ownerNameInput.value !== originalValues.owner_name ||
+                ownerEmailInput.value !== originalValues.owner_email ||
+                ownerPhoneInput.value !== originalValues.owner_phone
+            );
+        }
+
+        // Initialize - try direct loading first
+        loadCarInfoDirect();
+    </script>
+</body>
+</html>

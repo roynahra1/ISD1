@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>After-Service Form</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+            font-size: 2.2em;
+        }
+        
+        .form-section {
+            margin-bottom: 25px;
+            padding: 25px;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            background: #f8f9fa;
+        }
+        
+        .form-section h2 {
+            margin-top: 0;
+            color: #444;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+            font-size: 1.1em;
+        }
+        
+        .required:after {
+            content: " *";
+            color: #e74c3c;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 14px;
+            font-size: 1em;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
+        }
+        
+        input[readonly] {
+            background-color: #f8f9fa;
+            border-color: #ced4da;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        textarea {
+            height: 120px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        .btn {
+            padding: 16px 32px;
+            font-size: 1.1em;
+            cursor: pointer;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            min-width: 180px;
+            font-weight: bold;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        
+        .btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #00b09b, #96c93d);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #495057);
+        }
+        
+        .form-actions {
+            text-align: center;
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .car-info-display {
+            background: linear-gradient(135deg, #a8e6cf, #56ab2f);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 5px solid #28a745;
+        }
+        
+        .car-info-display h3 {
+            margin-bottom: 15px;
+            color: #155724;
+        }
+        
+        .car-detail {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .car-detail strong {
+            color: #0f5132;
+        }
+        
+        #message {
+            margin: 20px 0;
+            padding: 0;
+            text-align: center;
+        }
+        
+        .success { 
+            background: #d4edda; 
+            color: #155724; 
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #28a745;
+            font-size: 1.1em;
+        }
+        
+        .error { 
+            background: #f8d7da; 
+            color: #721c24; 
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #dc3545;
+            font-size: 1.1em;
+        }
+        
+        .warning { 
+            background: #fff3cd; 
+            color: #856404; 
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #ffc107;
+            font-size: 1.1em;
+        }
+        
+        .info { 
+            background: #d1ecf1; 
+            color: #0c5460; 
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #17a2b8;
+            font-size: 1.1em;
+        }
+        
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        .service-info {
+            background: linear-gradient(135deg, #ffeaa7, #fab1a0);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 5px solid #e17055;
+        }
+        
+        .detected-plate {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .service-date-info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #2196f3;
+            text-align: center;
+        }
+        
+        .readonly-field {
+            background-color: #e9ecef !important;
+            border-color: #ced4da !important;
+            color: #495057 !important;
+            cursor: not-allowed !important;
+        }
+        
+        .readonly-field:focus {
+            border-color: #ced4da !important;
+            box-shadow: none !important;
+        }
+
+        .mileage-info {
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #4caf50;
+            font-size: 0.9em;
+        }
+
+        .mileage-warning {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #ffc107;
+            font-size: 0.9em;
+        }
+
+        .mileage-error {
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #dc3545;
+            font-size: 0.9em;
+        }
+
+        .input-error {
+            border-color: #e74c3c !important;
+            background-color: #fdf2f2 !important;
+        }
+
+        .input-success {
+            border-color: #27ae60 !important;
+            background-color: #f2fdf2 !important;
+        }
+
+        .input-warning {
+            border-color: #f39c12 !important;
+            background-color: #fef9e7 !important;
+        }
+
+        .service-tag {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin: 2px;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 20px;
+                border-radius: 15px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .form-section {
+                padding: 20px;
+            }
+            
+            .btn {
+                width: 100%;
+                margin: 8px 0;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+            
+            .car-detail {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ After-Service Form</h1>
+        
+        <!-- Detected Plate Display -->
+        <div id="detectedPlateDisplay" class="detected-plate">
+            🚗 Servicing Vehicle: <span id="currentPlate"></span>
+        </div>
+
+        <!-- Car Information Section -->
+        <div class="form-section">
+            <h2>📋 Vehicle Information</h2>
+            
+            <!-- Car Info Display -->
+            <div id="carInfoDisplay" class="car-info-display" style="display: none;">
+                <h3>Vehicle Details</h3>
+                <div id="carDetails" class="car-detail">
+                    <!-- Car details will be populated here -->
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="car_plate">License Plate</label>
+                    <input type="text" id="car_plate" name="car_plate" readonly 
+                           class="readonly-field">
+                </div>
+                
+                <div class="form-group">
+                    <label for="vin">VIN Number</label>
+                    <input type="text" id="vin" name="vin" readonly 
+                           class="readonly-field">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="model">Car Model</label>
+                    <input type="text" id="model" name="model" readonly 
+                           class="readonly-field">
+                </div>
+                
+                <div class="form-group">
+                    <label for="year">Manufacturing Year</label>
+                    <input type="text" id="year" name="year" readonly 
+                           class="readonly-field">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="owner_name">Owner Name</label>
+                    <input type="text" id="owner_name" name="owner_name" readonly 
+                           class="readonly-field">
+                </div>
+                
+                <div class="form-group">
+                    <label for="owner_phone">Owner Phone</label>
+                    <input type="text" id="owner_phone" name="owner_phone" readonly 
+                           class="readonly-field">
+                </div>
+                <!-- ADD THIS BUTTON -->
+<div class="form-actions" style="justify-content: flex-start; margin-top: 10px;">
+    <button type="button" id="editCarBtn" class="btn btn-success">✏️ Edit Car Information</button>
+</div>
+            </div>
+        </div>
+        
+        <!-- Service Information Section -->
+        <div class="form-section">
+            <h2>🔧 Service Details</h2>
+            
+            <div class="service-info">
+                <strong>📝 Service Completion Record</strong><br>
+                <small>This creates a permanent service history record for the vehicle</small>
+            </div>
+
+            <!-- Service Date Info -->
+            <div class="service-date-info">
+                <strong>📅 Service Date:</strong> <span id="currentServiceDate"></span>
+            </div>
+
+            <!-- Mileage Information -->
+            <div id="mileageInfo" class="mileage-info" style="display: none;">
+                <strong>📊 Mileage Validation:</strong> 
+                <span id="mileageMessage"></span>
+            </div>
+
+            <!-- Mileage Warning -->
+            <div id="mileageWarning" class="mileage-warning" style="display: none;">
+                <strong>⚠️ Attention:</strong> 
+                <span id="mileageWarningMessage"></span>
+            </div>
+            
+            <div class="form-group">
+                <label for="mileage" class="required">Current Mileage (km)</label>
+                <input type="number" id="mileage" name="mileage" min="0" 
+                       placeholder="Enter current kilometers" required>
+                <small style="color: #666;">Must be greater than last recorded mileage</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="next_oil_change">Next Oil Change Due</label>
+                <input type="date" id="next_oil_change" name="next_oil_change">
+                <small style="color: #666;">Optional - leave empty to keep current schedule</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="services_performed">Services Performed</label>
+                <select id="services_performed" name="services_performed[]" multiple size="4">
+                    <option value="1">🛢️ Oil Change</option>
+                    <option value="2">🔄 Tire Rotation</option>
+                    <option value="3">🛑 Brake Inspection</option>
+                    <option value="4">🔋 Battery Check</option>
+                    <option value="5">🔍 Full Diagnostic</option>
+                </select>
+                <small>Hold Ctrl/Cmd to select multiple services</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="notes">Service Notes & Recommendations</label>
+                <textarea id="notes" name="notes" 
+                          placeholder="Describe work performed, recommendations for next service, or any issues found..."></textarea>
+            </div>
+        </div>
+        
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading">
+            <div class="loading-spinner"></div>
+            <div>Logging service record...</div>
+        </div>
+        
+        <!-- Message Display -->
+        <div id="message"></div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <button type="button" id="submitBtn" class="btn btn-success">✅ Log Service</button>
+            <button type="button" id="backBtn" class="btn btn-secondary">← Back to Detection</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+const carPlateInput = document.getElementById('car_plate');
+const vinInput = document.getElementById('vin');
+const modelInput = document.getElementById('model');
+const yearInput = document.getElementById('year');
+const ownerNameInput = document.getElementById('owner_name');
+const ownerPhoneInput = document.getElementById('owner_phone');
+const submitBtn = document.getElementById('submitBtn');
+const backBtn = document.getElementById('backBtn');
+const messageDiv = document.getElementById('message');
+const loadingDiv = document.getElementById('loading');
+const detectedPlateDisplay = document.getElementById('detectedPlateDisplay');
+const currentPlateSpan = document.getElementById('currentPlate');
+const currentServiceDateSpan = document.getElementById('currentServiceDate');
+const carInfoDisplay = document.getElementById('carInfoDisplay');
+const carDetails = document.getElementById('carDetails');
+const nextOilChangeInput = document.getElementById('next_oil_change');
+const mileageInput = document.getElementById('mileage');
+const mileageInfoDiv = document.getElementById('mileageInfo');
+const mileageMessageSpan = document.getElementById('mileageMessage');
+const mileageWarningDiv = document.getElementById('mileageWarning');
+const mileageWarningMessageSpan = document.getElementById('mileageWarningMessage');
+
+// Global variables to store car data
+let currentCarData = null;
+let lastRecordedMileage = 0;
+let carYear = 0;
+
+// Edit car button functionality
+document.getElementById('editCarBtn').addEventListener('click', function() {
+    const plateNumber = carPlateInput.value.trim();
+    if (plateNumber) {
+        window.open(`/mechanic/edit-car?plate=${plateNumber}`, '_blank');
+    } else {
+        showMessage('No license plate available for editing', 'error');
+    }
+});
+// Initialize form with data from sessionStorage
+document.addEventListener('DOMContentLoaded', function() {
+    // Set today's date
+    const today = new Date();
+    const todayDisplay = today.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+    currentServiceDateSpan.textContent = todayDisplay;
+
+    // DISABLE PAST DATES
+    disablePastDates();
+
+    // Check for stored plate from detection page
+    const storedPlate = sessionStorage.getItem('detectedPlate');
+    
+    if (storedPlate) {
+        currentPlateSpan.textContent = storedPlate;
+        carPlateInput.value = storedPlate;
+        
+        // Auto-fetch car info
+        fetchCarInfo(storedPlate);
+    } else {
+        showMessage('No vehicle detected. Please go back and scan a license plate.', 'warning');
+        submitBtn.disabled = true;
+    }
+});
+
+// NEW FUNCTION: Disable past dates
+function disablePastDates() {
+    const today = new Date();
+    const todayFormatted = today.toISOString().split('T')[0];
+    nextOilChangeInput.setAttribute('min', todayFormatted);
+}
+
+// Fetch Car Information
+function fetchCarInfo(plateNumber) {
+    showLoading(true);
+    clearMessage();
+
+    fetch(`/mechanic/api/car/${plateNumber}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Car not found');
+            }
+            return response.json();
+        })
+        .then(data => {
+            showLoading(false);
+            
+            if (data.success && data.car_info) {
+                currentCarData = data.car_info; // Store car data globally
+                populateCarInfo(currentCarData);
+                showMessage('Vehicle information loaded successfully!', 'success');
+                
+                // Fetch the latest service history to get current mileage
+                fetchLatestMileage(plateNumber);
+            } else {
+                throw new Error('Car information not available');
+            }
+        })
+        .catch(error => {
+            showLoading(false);
+            showMessage('Error loading vehicle information. Please check the license plate.', 'error');
+            submitBtn.disabled = true;
+        });
+}
+
+// NEW FUNCTION: Fetch maximum mileage from service history
+function fetchLatestMileage(plateNumber) {
+    fetch(`/mechanic/api/car/${plateNumber}/latest-mileage`)
+        .then(response => {
+            if (!response.ok) {
+                // If this endpoint doesn't exist, use the car info or default to 0
+                return { success: true, latest_mileage: 0 };
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                lastRecordedMileage = data.latest_mileage || 0;
+                
+                // Set minimum mileage value in the input
+                if (lastRecordedMileage > 0) {
+                    mileageInput.setAttribute('min', lastRecordedMileage + 1);
+                    mileageInput.setAttribute('placeholder', `Minimum: ${(lastRecordedMileage + 1).toLocaleString()} km`);
+                    
+                    // Show current mileage info
+                    mileageMessageSpan.textContent = `Maximum recorded mileage: ${lastRecordedMileage.toLocaleString()} km. Please enter a higher value.`;
+                    mileageInfoDiv.style.display = 'block';
+                }
+            }
+        })
+        .catch(error => {
+            console.log('Could not fetch latest mileage, using default validation');
+            lastRecordedMileage = 0;
+        });
+}
+
+function populateCarInfo(car) {
+    // Populate readonly fields
+    carPlateInput.value = car.plate_number || '';
+    vinInput.value = car.vin || 'Not available';
+    modelInput.value = car.model || 'Not available';
+    yearInput.value = car.year || 'Not available';
+    ownerNameInput.value = car.owner_name || 'Not available';
+    ownerPhoneInput.value = car.owner_phone || 'Not available';
+
+    // Store car year for mileage validation
+    carYear = parseInt(car.year) || new Date().getFullYear();
+
+    // Update car details display
+    carDetails.innerHTML = `
+        <div><strong>Owner:</strong> ${car.owner_name || 'N/A'}</div>
+        <div><strong>Phone:</strong> ${car.owner_phone || 'N/A'}</div>
+        <div><strong>Email:</strong> ${car.owner_email || 'N/A'}</div>
+        <div><strong>Model:</strong> ${car.model || 'N/A'}</div>
+        <div><strong>Year:</strong> ${car.year || 'N/A'}</div>
+        <div><strong>VIN:</strong> ${car.vin || 'N/A'}</div>
+        ${lastRecordedMileage > 0 ? `<div><strong>Maximum Recorded Mileage:</strong> ${lastRecordedMileage.toLocaleString()} km</div>` : ''}
+        ${car.next_oil_change ? `<div><strong>Next Oil Change:</strong> ${car.next_oil_change}</div>` : ''}
+    `;
+
+    // Pre-fill next oil change if available, but only if it's not a past date
+    if (car.next_oil_change) {
+        const nextOilChangeDate = new Date(car.next_oil_change);
+        const today = new Date();
+        
+        // Only pre-fill if the date is today or in the future
+        if (nextOilChangeDate >= today) {
+            nextOilChangeInput.value = car.next_oil_change;
+        } else {
+            // If it's a past date, show a warning and don't pre-fill
+            showMessage('Previous oil change date has passed. Please set a new future date.', 'warning');
+        }
+    }
+
+    carInfoDisplay.style.display = 'block';
+    submitBtn.disabled = false;
+}
+
+// Form Submission
+submitBtn.addEventListener('click', function() {
+    submitService();
+});
+
+// NEW FUNCTION: Strict mileage validation using MAXIMUM mileage
+function validateMileage(newMileage) {
+    // Basic validation
+    if (!newMileage || newMileage <= 0) {
+        return {
+            valid: false,
+            message: 'Mileage must be greater than 0'
+        };
+    }
+
+    // STRICT VALIDATION: Check against MAXIMUM recorded mileage
+    if (lastRecordedMileage > 0 && newMileage <= lastRecordedMileage) {
+        return {
+            valid: false,
+            message: `New mileage (${newMileage.toLocaleString()} km) must be GREATER than maximum recorded mileage (${lastRecordedMileage.toLocaleString()} km)`
+        };
+    }
+    
+    // Check for unrealistic mileage (e.g., more than 1,000,000 km)
+    if (newMileage > 1000000) {
+        return {
+            valid: false,
+            message: 'Mileage seems unusually high. Please verify the value.'
+        };
+    }
+
+    // Check for unrealistic mileage based on car age
+    const currentYear = new Date().getFullYear();
+    const carAge = currentYear - carYear;
+    const reasonableMaxMileage = carAge * 25000 + 50000; // 25,000 km per year + 50,000 base
+    
+    if (newMileage > reasonableMaxMileage) {
+        return {
+            valid: true, // Still valid but show strong warning
+            warning: `High mileage for ${carYear} vehicle (${carAge} years old). Expected maximum: ${reasonableMaxMileage.toLocaleString()} km`
+        };
+    }
+    
+    // Check for unrealistic jump (more than 50,000 km increase)
+    if (lastRecordedMileage > 0 && (newMileage - lastRecordedMileage) > 50000) {
+        return {
+            valid: true, // Still valid but show warning
+            warning: `Large mileage increase detected: ${(newMileage - lastRecordedMileage).toLocaleString()} km since last service. Please verify.`
+        };
+    }
+    
+    return { valid: true };
+}
+
+function submitService() {
+    const carPlate = carPlateInput.value.trim();
+    const mileageValue = document.getElementById('mileage').value;
+    const nextOilChange = document.getElementById('next_oil_change').value;
+    
+    // Basic validation
+    if (!mileageValue) {
+        showMessage('Please enter the current mileage', 'error');
+        mileageInput.classList.add('input-error');
+        mileageInput.focus();
+        return;
+    }
+
+    const mileage = parseInt(mileageValue);
+    
+    // STRICT VALIDATION: Check if mileage is a valid number
+    if (isNaN(mileage)) {
+        showMessage('Please enter a valid mileage number', 'error');
+        mileageInput.classList.add('input-error');
+        mileageInput.focus();
+        return;
+    }
+
+    // Validate mileage
+    const mileageValidation = validateMileage(mileage);
+    if (!mileageValidation.valid) {
+        showMessage(`❌ ${mileageValidation.message}`, 'error');
+        mileageInput.classList.add('input-error');
+        mileageInput.focus();
+        return;
+    }
+
+    // Validate next oil change date if provided
+    if (nextOilChange) {
+        const selectedDate = new Date(nextOilChange);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (selectedDate < today) {
+            showMessage('Next oil change date cannot be in the past. Please select a future date.', 'error');
+            nextOilChangeInput.classList.add('input-error');
+            nextOilChangeInput.focus();
+            return;
+        }
+    }
+
+    // Clear any previous error styling
+    mileageInput.classList.remove('input-error');
+    nextOilChangeInput.classList.remove('input-error');
+
+    const formData = {
+        car_plate: carPlate,
+        mileage: mileage,
+        next_oil_change: nextOilChange || null,
+        notes: document.getElementById('notes').value,
+        services_performed: Array.from(document.getElementById('services_performed').selectedOptions)
+            .map(option => parseInt(option.value))
+    };
+
+    showLoading(true);
+    clearMessage();
+
+    // Show warning if applicable (but don't block submission)
+    if (mileageValidation.warning) {
+        showMessage(`⚠️ ${mileageValidation.warning}`, 'warning');
+    }
+
+    // Send to backend
+    fetch('/mechanic/api/complete-service', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        showLoading(false);
+        
+        if (data.success) {
+            showMessage(`✅ Service logged successfully! ${data.message}`, 'success');
+            submitBtn.disabled = true;
+            
+            // Update last recorded mileage for potential subsequent entries
+            lastRecordedMileage = mileage;
+            
+            // Clear form but keep vehicle info
+            document.getElementById('mileage').value = '';
+            document.getElementById('notes').value = '';
+            document.getElementById('services_performed').selectedIndex = -1;
+            document.getElementById('next_oil_change').value = '';
+            
+            // Update mileage info display
+            mileageMessageSpan.textContent = `Service recorded with ${mileage.toLocaleString()} km (previous max: ${data.previous_max_mileage ? data.previous_max_mileage.toLocaleString() : 'N/A'} km)`;
+            mileageInfoDiv.style.display = 'block';
+            
+        } else {
+            showMessage(`❌ ${data.message}`, 'error');
+            // Highlight the problematic field
+            if (data.message.includes('mileage')) {
+                mileageInput.classList.add('input-error');
+                mileageInput.focus();
+            }
+        }
+    })
+    .catch(error => {
+        showLoading(false);
+        showMessage('Error submitting service record. Please try again.', 'error');
+    });
+}
+
+// Real-time mileage validation
+mileageInput.addEventListener('blur', function() {
+    const mileageValue = this.value;
+    if (mileageValue) {
+        const mileage = parseInt(mileageValue);
+        const validation = validateMileage(mileage);
+        
+        if (!validation.valid) {
+            showMessage(validation.message, 'error');
+            this.classList.add('input-error');
+            this.classList.remove('input-success', 'input-warning');
+            mileageWarningDiv.style.display = 'none';
+        } else {
+            if (validation.warning) {
+                mileageWarningMessageSpan.textContent = validation.warning;
+                mileageWarningDiv.style.display = 'block';
+                this.classList.add('input-warning');
+                this.classList.remove('input-error', 'input-success');
+            } else {
+                clearMessage();
+                mileageWarningDiv.style.display = 'none';
+                this.classList.add('input-success');
+                this.classList.remove('input-error', 'input-warning');
+            }
+        }
+    }
+});
+
+// Clear error styling when user starts typing
+mileageInput.addEventListener('input', function() {
+    this.classList.remove('input-error', 'input-success', 'input-warning');
+    clearMessage();
+    mileageWarningDiv.style.display = 'none';
+});
+
+// Back to Detection
+backBtn.addEventListener('click', function() {
+    sessionStorage.removeItem('detectedPlate');
+    window.location.href = '/mechanic/plate-detection';
+});
+
+// Utility Functions
+function showMessage(text, type) {
+    messageDiv.innerHTML = `<div class="${type}">${text}</div>`;
+}
+
+function clearMessage() {
+    messageDiv.innerHTML = '';
+}
+
+function showLoading(show) {
+    loadingDiv.style.display = show ? 'block' : 'none';
+    submitBtn.disabled = show;
+}
+
+// Enter key support for form submission
+document.addEventListener('keypress', function(event) {
+    if (event.key === 'Enter' && !submitBtn.disabled) {
+        submitService();
+    }
+});
+
+// Service selection helper
+document.getElementById('services_performed').addEventListener('change', function() {
+    const selectedCount = this.selectedOptions.length;
+    if (selectedCount > 0) {
+        this.style.borderColor = '#27ae60';
+        this.style.backgroundColor = '#f2fdf2';
+    } else {
+        this.style.borderColor = '#ddd';
+        this.style.backgroundColor = 'white';
+    }
+});
+
+// Auto-format mileage input
+mileageInput.addEventListener('blur', function() {
+    const value = this.value;
+    if (value && !isNaN(value)) {
+        this.value = parseInt(value).toLocaleString();
+    }
+});
+
+mileageInput.addEventListener('focus', function() {
+    const value = this.value.replace(/,/g, '');
+    if (value && !isNaN(value)) {
+        this.value = value;
+    }
+});
+    </script>
+</body>
+</html>
