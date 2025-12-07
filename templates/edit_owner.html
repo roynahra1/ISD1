@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Owner Information - Garage Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            opacity: 0.8;
+            font-size: 14px;
+        }
+        
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .search-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border: 2px dashed #dee2e6;
+        }
+        
+        .form-section {
+            display: none;
+        }
+        
+        .active-section {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        input[type="number"],
+        input[type="date"],
+        select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus,
+        select:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+        }
+        
+        .search-input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .search-input-container input {
+            flex: 1;
+        }
+        
+        .results-container {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .result-item {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .result-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .owner-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .owner-details {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .cars-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+        
+        .car-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .car-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .car-plate {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+        
+        .car-model {
+            color: #666;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        
+        .car-vin {
+            font-family: monospace;
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/mechanic/dashboard" class="back-btn">← Back to Dashboard</a>
+            <div class="user-info">Logged in as: <span id="username"></span></div>
+            <h1>Edit Owner Information</h1>
+            <p>Search for an owner to update their information</p>
+        </div>
+        
+        <div class="content">
+            <div class="alert" id="alert"></div>
+            
+            <!-- Search Section -->
+            <div id="searchSection" class="search-section active-section">
+                <h2 style="margin-bottom: 20px; color: #2c3e50;">Search Owner</h2>
+                <div class="search-input-container">
+                    <input type="text" id="searchInput" placeholder="Search by name, email, or phone number..." autocomplete="off">
+                    <button class="btn" onclick="searchOwners()">🔍 Search</button>
+                </div>
+                <div id="searchResults" class="results-container"></div>
+            </div>
+            
+            <!-- Edit Form Section -->
+            <div id="editSection" class="form-section">
+                <h2 style="margin-bottom: 20px; color: #2c3e50;">Edit Owner Information</h2>
+                <form id="ownerForm">
+                    <input type="hidden" id="ownerId">
+                    
+                    <div class="form-group">
+                        <label for="ownerName">Owner Name *</label>
+                        <input type="text" id="ownerName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ownerEmail">Email Address</label>
+                        <input type="email" id="ownerEmail" placeholder="owner@example.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ownerPhone">Phone Number *</label>
+                        <input type="tel" id="ownerPhone" required>
+                    </div>
+                    
+                    <!-- Owner's Cars Section -->
+                    <div id="ownerCarsSection" class="cars-section">
+                        <h3>Owner's Cars</h3>
+                        <div id="ownerCarsList" class="car-grid"></div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="goBackToSearch()">← Back to Search</button>
+                        <button type="submit" class="btn">Update Owner</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p id="loadingText">Loading...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('username').textContent = localStorage.getItem('mechanic_username') || 'Mechanic';
+            document.getElementById('searchInput').focus();
+        });
+        
+        function showAlert(message, type = 'success') {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+            
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+        
+        function showLoading(text = 'Loading...') {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loading').style.display = 'block';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        async function searchOwners() {
+            const searchTerm = document.getElementById('searchInput').value.trim();
+            
+            if (searchTerm.length < 2) {
+                showAlert('Please enter at least 2 characters to search', 'warning');
+                return;
+            }
+            
+            showLoading('Searching owners...');
+            
+            try {
+                const response = await fetch(`/mechanic/api/search-owners?q=${encodeURIComponent(searchTerm)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displaySearchResults(data.owners);
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error searching owners: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function displaySearchResults(owners) {
+            const resultsContainer = document.getElementById('searchResults');
+            
+            if (owners.length === 0) {
+                resultsContainer.innerHTML = '<div class="result-item" style="text-align: center; color: #666;">No owners found</div>';
+                return;
+            }
+            
+            let html = '';
+            owners.forEach(owner => {
+                html += `
+                    <div class="result-item" onclick="loadOwner(${owner.Owner_ID})">
+                        <div class="owner-name">${owner.Owner_Name}</div>
+                        <div class="owner-details">
+                            <div>📧 ${owner.Owner_Email || 'No email'}</div>
+                            <div>📱 ${owner.PhoneNUMB || 'No phone'}</div>
+                            <div>🆔 Owner ID: ${owner.Owner_ID}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsContainer.innerHTML = html;
+        }
+        
+        async function loadOwner(ownerId) {
+            showLoading('Loading owner information...');
+            
+            try {
+                const response = await fetch(`/mechanic/api/owner/${ownerId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Populate form
+                    const owner = data.owner;
+                    document.getElementById('ownerId').value = owner.Owner_ID;
+                    document.getElementById('ownerName').value = owner.Owner_Name;
+                    document.getElementById('ownerEmail').value = owner.Owner_Email || '';
+                    document.getElementById('ownerPhone').value = owner.PhoneNUMB || '';
+                    
+                    // Load owner's cars
+                    await loadOwnerCars(ownerId);
+                    
+                    // Switch to edit section
+                    document.getElementById('searchSection').classList.remove('active-section');
+                    document.getElementById('editSection').classList.add('active-section');
+                    
+                    showAlert(`Loaded owner: ${owner.Owner_Name}`, 'success');
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error loading owner: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function loadOwnerCars(ownerId) {
+            try {
+                const response = await fetch(`/mechanic/api/owner-cars/${ownerId}`);
+                const data = await response.json();
+                
+                const carsList = document.getElementById('ownerCarsList');
+                
+                if (data.success && data.cars.length > 0) {
+                    let html = '';
+                    data.cars.forEach(car => {
+                        html += `
+                            <div class="car-card">
+                                <div class="car-plate">${car.Car_plate}</div>
+                                <div class="car-model">${car.Model} (${car.Year})</div>
+                                <div class="car-vin">VIN: ${car.VIN}</div>
+                                ${car.Next_Oil_Change ? `<div style="color: #e67e22; font-size: 12px; margin-top: 5px;">Next oil: ${car.Next_Oil_Change}</div>` : ''}
+                            </div>
+                        `;
+                    });
+                    carsList.innerHTML = html;
+                    document.getElementById('ownerCarsSection').style.display = 'block';
+                } else {
+                    carsList.innerHTML = '<div style="color: #666; text-align: center;">No cars registered for this owner</div>';
+                }
+            } catch (error) {
+                console.error('Error loading owner cars:', error);
+            }
+        }
+        
+        function goBackToSearch() {
+            document.getElementById('searchSection').classList.add('active-section');
+            document.getElementById('editSection').classList.remove('active-section');
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('ownerForm').reset();
+            document.getElementById('ownerCarsList').innerHTML = '';
+        }
+        
+        document.getElementById('ownerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const ownerId = document.getElementById('ownerId').value;
+            const ownerName = document.getElementById('ownerName').value.trim();
+            const ownerEmail = document.getElementById('ownerEmail').value.trim();
+            const ownerPhone = document.getElementById('ownerPhone').value.trim();
+            
+            // Validate
+            if (!ownerName) {
+                showAlert('Owner name is required', 'error');
+                return;
+            }
+            
+            if (!ownerPhone) {
+                showAlert('Phone number is required', 'error');
+                return;
+            }
+            
+            showLoading('Updating owner information...');
+            
+            try {
+                const response = await fetch(`/mechanic/api/owner/${ownerId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        owner_name: ownerName,
+                        owner_email: ownerEmail,
+                        phone_number: ownerPhone
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    // Reload owner data
+                    setTimeout(() => loadOwner(ownerId), 1000);
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error updating owner: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        });
+        
+        // Allow pressing Enter to search
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchOwners();
+            }
+        });
+    </script>
+</body>
+</html>

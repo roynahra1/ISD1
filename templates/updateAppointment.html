@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Load current appointment data
+    // Load current appointment data - FIXED SERVICE LOADING
     fetch('/appointments/current')
     .then(response => response.json())
     .then(data => {
@@ -218,8 +218,17 @@ document.addEventListener('DOMContentLoaded', function() {
             // Set notes
             document.getElementById('notes').value = appt.Notes || '';
             
-            // Set selected services
-            if (appt.Services) {
+            // FIXED: Set selected services using service_ids instead of Service names
+            if (appt.service_ids) {
+                const selectedServiceIds = appt.service_ids.split(',').map(id => parseInt(id.trim()));
+                services.forEach(service => {
+                    const serviceId = parseInt(service.dataset.id);
+                    if (selectedServiceIds.includes(serviceId)) {
+                        service.classList.add('selected');
+                    }
+                });
+            } else if (appt.Services) {
+                // Fallback to service names if service_ids not available
                 const selectedServices = appt.Services.split(',');
                 services.forEach(service => {
                     if (selectedServices.includes(service.textContent.trim())) {

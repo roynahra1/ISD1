@@ -116,19 +116,23 @@ def search_appointments_by_plate():
     try:
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute(
-            """
-            SELECT a.Appointment_id, a.Date, a.Time, a.Notes, a.Car_plate,
-                   GROUP_CONCAT(s.Service_Type) AS Services
-            FROM appointment a
-            LEFT JOIN appointment_service aps ON a.Appointment_id = aps.Appointment_id
-            LEFT JOIN service s ON aps.Service_ID = s.Service_ID
-            WHERE a.Car_plate = %s
-            GROUP BY a.Appointment_id
-            ORDER BY a.Date, a.Time
-            """,
-            (car_plate,),
-        )
+         # In search_appointments_by_plate and get_appointment_by_id - REPLACE the queries with:
+        cursor.execute("""
+         SELECT a.Appointment_id, a.Date, a.Time, a.Notes, a.Car_plate,
+         c.Model, c.Year, c.VIN, c.Owner_ID,
+         o.Owner_Name, o.Owner_Email, o.PhoneNUMB,
+         GROUP_CONCAT(s.Service_Type) AS Services,
+         GROUP_CONCAT(s.Service_ID) AS service_ids
+         FROM appointment a
+         LEFT JOIN car c ON a.Car_plate = c.Car_plate
+         LEFT JOIN owner o ON c.Owner_ID = o.Owner_ID
+         LEFT JOIN appointment_service aps ON a.Appointment_id = aps.Appointment_id
+         LEFT JOIN service s ON aps.Service_ID = s.Service_ID
+         WHERE a.Car_plate = %s
+         GROUP BY a.Appointment_id
+         ORDER BY a.Date, a.Time
+         """, (car_plate,))
+        
         appointments = cursor.fetchall()
         for appt in appointments:
             for k, v in appt.items():
@@ -194,9 +198,11 @@ def select_appointment():
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         
+        # UPDATED QUERY - includes service_ids
         cursor.execute("""
-            SELECT a.*, GROUP_CONCAT(s.Service_Type) as Services,
-                   GROUP_CONCAT(s.Service_ID) as service_ids
+            SELECT a.*, 
+                   GROUP_CONCAT(s.Service_Type) as Services,
+                   GROUP_CONCAT(s.Service_ID) as service_ids  # ← CRITICAL ADDITION
             FROM appointment a
             LEFT JOIN appointment_service aps ON a.Appointment_id = aps.Appointment_id
             LEFT JOIN service s ON aps.Service_ID = s.Service_ID
@@ -217,9 +223,6 @@ def select_appointment():
     except Error as err:
         logger.error(f"Database error in select_appointment: {err}")
         return jsonify({"status": "error", "message": f"Database error: {str(err)}"}), 500
-    except Exception as e:
-        logger.error(f"Unexpected error in select_appointment: {e}")
-        return jsonify({"status": "error", "message": "Internal server error"}), 500
     finally:
         _safe_close(cursor, conn)
 

@@ -235,6 +235,82 @@ def get_recent_activity():
         _safe_close(cursor, conn)
 
 # ===============================
+# APPOINTMENT MANAGEMENT - CONSISTENT VERSION
+# ===============================
+
+@mechanic_bp.route("/api/appointments/<int:appointment_id>", methods=['DELETE'])
+@mechanic_login_required
+def delete_appointment(appointment_id):
+    """Delete appointment - Consistent pattern"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # Delete operations
+        cursor.execute("DELETE FROM appointment_service WHERE Appointment_ID = %s", (appointment_id,))
+        cursor.execute("DELETE FROM appointment WHERE Appointment_ID = %s", (appointment_id,))
+        
+        conn.commit()  # ← MUST HAVE THIS
+        
+        return jsonify({
+            "success": True,
+            "message": "Appointment deleted successfully"
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()  # ← MUST HAVE THIS
+        return jsonify({
+            "success": False,
+            "message": f"Error deleting appointment: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)  # ← Use the SAME cleanup as other routes
+
+@mechanic_bp.route("/api/appointments/<int:appointment_id>", methods=['PUT'])
+@mechanic_login_required
+def update_appointment(appointment_id):
+    """Update appointment - Consistent pattern"""
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "message": "No data provided"}), 400
+    
+    date = data.get('date')
+    time = data.get('time')
+    notes = data.get('notes', '')
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE appointment 
+            SET Date = %s, Time = %s, Notes = %s 
+            WHERE Appointment_ID = %s
+        """, (date, time, notes, appointment_id))
+        
+        conn.commit()  # ← MUST HAVE THIS
+        
+        return jsonify({
+            "success": True,
+            "message": "Appointment updated successfully"
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()  # ← MUST HAVE THIS
+        return jsonify({
+            "success": False,
+            "message": f"Error updating appointment: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)  # ← Use the SAME cleanup as other routes
+
+# ===============================
 # ADD CAR ROUTES - MECHANIC SESSION ONLY
 # ===============================
 
@@ -507,6 +583,149 @@ def check_owner_exists(phone_number):
     finally:
         _safe_close(cursor, conn)
 
+
+# ===============================
+# VIN SEARCH ROUTES - MECHANIC SESSION ONLY
+# ===============================
+
+@mechanic_bp.route('/api/search-by-vin', methods=['GET'])
+@mechanic_login_required
+def search_by_vin():
+    vin = request.args.get('vin', '').strip().upper()
+    if not vin:
+        return jsonify({"success": False, "message": "VIN number is required"}), 400
+    
+    vin_clean = ''.join(c for c in vin if c.isalnum()).upper()
+
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT 
+                c.Car_plate AS plate_number,
+                c.Model AS model,
+                c.Year AS year,
+                c.VIN AS vin,
+                c.Next_Oil_Change AS next_oil_change,
+                o.Owner_Name AS owner_name,
+                o.Owner_Email AS owner_email,
+                o.PhoneNUMB AS owner_phone
+            FROM car c
+            LEFT JOIN owner o ON c.Owner_ID = o.Owner_ID
+            WHERE UPPER(c.VIN) LIKE CONCAT('%', %s, '%')
+            ORDER BY
+                CASE
+                    WHEN UPPER(c.VIN) = %s THEN 1
+                    WHEN UPPER(c.VIN) LIKE CONCAT(%s, '%') THEN 2
+                    ELSE 3
+                END, c.Car_plate
+            LIMIT 10
+        """, (vin_clean, vin_clean, vin_clean))
+
+        results = cursor.fetchall()
+        if not results:
+            return jsonify({"success": False, "message": "No cars found"}), 404
+
+        for r in results:
+            if r["next_oil_change"]:
+                r["next_oil_change"] = r["next_oil_change"].isoformat()
+
+        if len(results) == 1:
+            return jsonify({"success": True, "matches_found": 1, "car_info": results[0]})
+        else:
+            return jsonify({"success": True, "matches_found": len(results), "cars": results})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        _safe_close(cursor, conn)
+
+@mechanic_bp.route('/api/search-by-vin-flexible', methods=['GET'])
+@mechanic_login_required
+def search_by_vin_flexible():
+    """Flexible VIN search - find cars by partial VIN match"""
+    print(f"🔍 Flexible VIN search...")
+    
+    vin = request.args.get('vin', '').strip().upper()
+    print(f"📥 Searching for VIN (flexible): '{vin}'")
+    
+    if not vin:
+        return jsonify({"success": False, "message": "VIN number is required"}), 400
+    
+    # Clean the VIN - remove spaces and special characters
+    vin_clean = ''.join(c for c in vin if c.isalnum()).upper()
+    print(f"🧹 Cleaned VIN: '{vin_clean}'")
+    
+    if len(vin_clean) < 3:  # Even more flexible - minimum 3 characters
+        return jsonify({
+            "success": False, 
+            "message": "Please enter at least 3 characters of the VIN"
+        }), 400
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # FLEXIBLE SEARCH: Look for partial matches anywhere in VIN
+        cursor.execute("""
+            SELECT 
+                c.Car_plate as plate_number,
+                c.Model as model,
+                c.Year as year,
+                c.VIN as vin,
+                c.Next_Oil_Change as next_oil_change,
+                o.Owner_Name as owner_name,
+                o.Owner_Email as owner_email,
+                o.PhoneNUMB as owner_phone
+            FROM car c
+            LEFT JOIN owner o ON c.Owner_ID = o.Owner_ID
+            WHERE UPPER(c.VIN) LIKE UPPER(CONCAT('%', %s, '%'))
+            ORDER BY 
+                CASE 
+                    WHEN UPPER(c.VIN) = UPPER(%s) THEN 1  -- Exact match first
+                    WHEN UPPER(c.VIN) LIKE UPPER(CONCAT(%s, '%')) THEN 2  -- Starts with
+                    ELSE 3  -- Contains
+                END,
+                c.Car_plate
+            LIMIT 20
+        """, (vin_clean, vin_clean, vin_clean))
+        
+        results = cursor.fetchall()
+        
+        if results:
+            print(f"✅ Found {len(results)} cars matching VIN pattern")
+            
+            # Format dates for JSON
+            for result in results:
+                if result.get('next_oil_change') and hasattr(result['next_oil_change'], 'isoformat'):
+                    result['next_oil_change'] = result['next_oil_change'].isoformat()
+            
+            return jsonify({
+                "success": True,
+                "matches_found": len(results),
+                "cars": results,
+                "message": f"Found {len(results)} matches for VIN pattern '{vin_clean}'"
+            })
+        else:
+            print(f"❌ No cars found with VIN containing: {vin_clean}")
+            return jsonify({
+                "success": False,
+                "message": f"No cars found with VIN containing: {vin}"
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Error in flexible VIN search: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error searching VIN: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
 # ===============================
 # CAR INFO API ROUTES - MECHANIC SESSION ONLY
 # ===============================
@@ -756,8 +975,8 @@ def submit_after_service():
 @mechanic_bp.route("/api/appointments", methods=['GET'])
 @mechanic_login_required
 def get_all_appointments():
-    """Simple API to get all appointments"""
-    print("📅 DEBUG: Fetching appointments...")
+    """API to get only UPCOMING appointments (future dates)"""
+    print("📅 DEBUG: Fetching UPCOMING appointments...")
     
     conn = None
     cursor = None
@@ -765,36 +984,66 @@ def get_all_appointments():
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         
-        # SUPER SIMPLE query - just get basic appointment data
-        cursor.execute("SELECT * FROM appointment ORDER BY Date DESC, Time DESC")
+        # Get today's date properly
+        today = datetime.now().date()
+        print(f"🔍 DEBUG: Today's date: {today}")
+        
+        # SIMPLE SQL query to get only upcoming appointments
+        cursor.execute("""
+            SELECT 
+                a.*,
+                c.Model as car_model,
+                o.Owner_Name,
+                o.PhoneNUMB
+            FROM appointment a
+            LEFT JOIN car c ON a.Car_plate = c.Car_plate
+            LEFT JOIN owner o ON c.Owner_ID = o.Owner_ID
+            WHERE a.Date >= %s
+            ORDER BY a.Date ASC, a.Time ASC
+        """, (today,))
         
         appointments = cursor.fetchall()
         
-        print(f"✅ DEBUG: Found {len(appointments)} raw appointments")
+        print(f"✅ DEBUG: Found {len(appointments)} UPCOMING appointments")
         
-        # Debug: print first appointment to see structure
-        if appointments:
-            print(f"📋 DEBUG: First appointment: {appointments[0]}")
-        
-        # Simple formatting
+        # Debug: print what we found
         for appointment in appointments:
+            print(f"📋 UPCOMING: ID {appointment['Appointment_ID']} - Date: {appointment['Date']}")
+        
+        # Format the data for frontend
+        formatted_appointments = []
+        for appointment in appointments:
+            # Handle date formatting
+            appointment_date = appointment['Date']
+            if hasattr(appointment_date, 'isoformat'):
+                appointment_date = appointment_date.isoformat()
+            
             # Handle time formatting
-            if appointment.get('Time'):
-                if isinstance(appointment['Time'], timedelta):
-                    total_seconds = int(appointment['Time'].total_seconds())
+            appointment_time = appointment.get('Time')
+            if appointment_time:
+                if isinstance(appointment_time, timedelta):
+                    total_seconds = int(appointment_time.total_seconds())
                     hours = total_seconds // 3600
                     minutes = (total_seconds % 3600) // 60
-                    appointment['Time'] = f"{hours:02d}:{minutes:02d}"
+                    appointment_time = f"{hours:02d}:{minutes:02d}"
                 else:
-                    appointment['Time'] = str(appointment['Time'])
+                    appointment_time = str(appointment_time)
             
-            # Handle date formatting
-            if appointment.get('Date') and hasattr(appointment['Date'], 'isoformat'):
-                appointment['Date'] = appointment['Date'].isoformat()
+            formatted_appt = {
+                'Appointment_ID': appointment['Appointment_ID'],
+                'Date': appointment_date,
+                'Time': appointment_time,
+                'Car_plate': appointment['Car_plate'],
+                'Notes': appointment.get('Notes', ''),
+                'car_model': appointment.get('car_model', ''),
+                'Owner_Name': appointment.get('Owner_Name', ''),
+                'PhoneNUMB': appointment.get('PhoneNUMB', '')
+            }
+            formatted_appointments.append(formatted_appt)
         
         return jsonify({
             "success": True,
-            "data": appointments,
+            "data": formatted_appointments,
             "total": len(appointments)
         })
         
@@ -808,7 +1057,6 @@ def get_all_appointments():
         }), 500
     finally:
         _safe_close(cursor, conn)
-
 @mechanic_bp.route("/api/appointments/<int:appointment_id>", methods=['GET'])
 @mechanic_login_required
 def get_appointment_details(appointment_id):
@@ -1115,7 +1363,316 @@ def get_complete_services():
         }), 500
     finally:
         _safe_close(cursor, conn)
+# ===============================
+# EDIT OWNER & CAR INFORMATION ROUTES - ADD THIS SECTION
+# ===============================
 
+@mechanic_bp.route("/edit-owner")
+def edit_owner_page():
+    """Serve the edit owner form page"""
+    if not session.get("mechanic_logged_in"):
+        return redirect("/mechanic/login.html")
+    
+    return render_template("edit_owner.html", username=session.get("mechanic_username"))
+
+@mechanic_bp.route("/edit-car")
+def edit_car_page():
+    """Serve the edit car form page"""
+    if not session.get("mechanic_logged_in"):
+        return redirect("/mechanic/login.html")
+    
+    return render_template("edit_car.html", username=session.get("mechanic_username"))
+
+@mechanic_bp.route("/api/owner/<int:owner_id>", methods=['GET'])
+@mechanic_login_required
+def get_owner_by_id(owner_id):
+    """Get owner information by ID"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT Owner_ID, Owner_Name, Owner_Email, PhoneNUMB 
+            FROM owner 
+            WHERE Owner_ID = %s
+        """, (owner_id,))
+        
+        owner = cursor.fetchone()
+        
+        if owner:
+            return jsonify({
+                "success": True,
+                "owner": owner
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"Owner with ID {owner_id} not found"
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Error getting owner: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error getting owner: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+@mechanic_bp.route("/api/owner/<int:owner_id>", methods=['PUT'])
+@mechanic_login_required
+def update_owner(owner_id):
+    """Update owner information"""
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "message": "No data provided"}), 400
+    
+    owner_name = data.get('owner_name', '').strip()
+    owner_email = data.get('owner_email', '').strip()
+    phone_number = data.get('phone_number', '').strip()
+    
+    # Validation
+    if not owner_name:
+        return jsonify({"success": False, "message": "Owner name is required"}), 400
+    
+    if not phone_number:
+        return jsonify({"success": False, "message": "Phone number is required"}), 400
+    
+    # Basic email validation (optional field)
+    if owner_email and '@' not in owner_email:
+        return jsonify({"success": False, "message": "Invalid email format"}), 400
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # Check if owner exists
+        cursor.execute("SELECT Owner_ID FROM owner WHERE Owner_ID = %s", (owner_id,))
+        if not cursor.fetchone():
+            return jsonify({"success": False, "message": f"Owner with ID {owner_id} not found"}), 404
+        
+        # Check if phone number already exists for another owner
+        cursor.execute("""
+            SELECT Owner_ID FROM owner 
+            WHERE PhoneNUMB = %s AND Owner_ID != %s
+        """, (phone_number, owner_id))
+        
+        if cursor.fetchone():
+            return jsonify({
+                "success": False, 
+                "message": "Phone number already registered to another owner"
+            }), 409
+        
+        # Update owner information
+        cursor.execute("""
+            UPDATE owner 
+            SET Owner_Name = %s, 
+                Owner_Email = %s, 
+                PhoneNUMB = %s 
+            WHERE Owner_ID = %s
+        """, (owner_name, owner_email, phone_number, owner_id))
+        
+        conn.commit()
+        
+        logger.info(f"Owner {owner_id} updated by {session.get('mechanic_username')}")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Owner {owner_name} updated successfully",
+            "owner_id": owner_id
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"Error updating owner: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error updating owner: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+@mechanic_bp.route("/api/car/<car_plate>", methods=['PUT'])
+@mechanic_login_required
+def update_car(car_plate):
+    """Update car information"""
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "message": "No data provided"}), 400
+    
+    model = data.get('model', '').strip()
+    year = data.get('year')
+    vin = data.get('vin', '').strip().upper()
+    next_oil_change = data.get('next_oil_change')
+    owner_id = data.get('owner_id')
+    
+    # Validation
+    if not model:
+        return jsonify({"success": False, "message": "Car model is required"}), 400
+    
+    if not year or not isinstance(year, int) or year < 1900 or year > datetime.now().year + 1:
+        return jsonify({"success": False, "message": "Valid manufacturing year is required"}), 400
+    
+    if not vin or len(vin) != 17:
+        return jsonify({"success": False, "message": "Valid 17-character VIN is required"}), 400
+    
+    if next_oil_change:
+        try:
+            next_oil_date = datetime.strptime(next_oil_change, '%Y-%m-%d').date()
+            if next_oil_date < datetime.now().date():
+                return jsonify({"success": False, "message": "Next oil change date cannot be in the past"}), 400
+        except ValueError:
+            return jsonify({"success": False, "message": "Invalid date format for next oil change"}), 400
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check if car exists
+        cursor.execute("SELECT Car_plate FROM car WHERE Car_plate = %s", (car_plate,))
+        if not cursor.fetchone():
+            return jsonify({"success": False, "message": f"Car with plate {car_plate} not found"}), 404
+        
+        # Check if VIN already exists for another car
+        cursor.execute("""
+            SELECT Car_plate FROM car 
+            WHERE VIN = %s AND Car_plate != %s
+        """, (vin, car_plate))
+        
+        if cursor.fetchone():
+            return jsonify({
+                "success": False, 
+                "message": f"VIN {vin} already registered to another car"
+            }), 409
+        
+        # Check if owner exists
+        if owner_id:
+            cursor.execute("SELECT Owner_ID FROM owner WHERE Owner_ID = %s", (owner_id,))
+            if not cursor.fetchone():
+                return jsonify({"success": False, "message": f"Owner with ID {owner_id} not found"}), 404
+        
+        # Update car information
+        update_query = """
+            UPDATE car 
+            SET Model = %s, 
+                Year = %s, 
+                VIN = %s, 
+                Next_Oil_Change = %s,
+                Owner_ID = %s
+            WHERE Car_plate = %s
+        """
+        cursor.execute(update_query, (model, year, vin, next_oil_change, owner_id, car_plate))
+        
+        conn.commit()
+        
+        logger.info(f"Car {car_plate} updated by {session.get('mechanic_username')}")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Car {car_plate} updated successfully",
+            "car_plate": car_plate
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"Error updating car: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error updating car: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+@mechanic_bp.route("/api/search-owners", methods=['GET'])
+@mechanic_login_required
+def search_owners():
+    """Search owners by name, email, or phone"""
+    search_term = request.args.get('q', '').strip()
+    
+    if not search_term or len(search_term) < 2:
+        return jsonify({"success": False, "message": "Please enter at least 2 characters"}), 400
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        search_pattern = f"%{search_term}%"
+        
+        cursor.execute("""
+            SELECT Owner_ID, Owner_Name, Owner_Email, PhoneNUMB 
+            FROM owner 
+            WHERE Owner_Name LIKE %s 
+               OR Owner_Email LIKE %s 
+               OR PhoneNUMB LIKE %s
+            ORDER BY Owner_Name
+            LIMIT 20
+        """, (search_pattern, search_pattern, search_pattern))
+        
+        owners = cursor.fetchall()
+        
+        return jsonify({
+            "success": True,
+            "owners": owners,
+            "count": len(owners)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error searching owners: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error searching owners: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
+
+@mechanic_bp.route("/api/owner-cars/<int:owner_id>", methods=['GET'])
+@mechanic_login_required
+def get_owner_cars(owner_id):
+    """Get all cars owned by a specific owner"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT Car_plate, Model, Year, VIN, Next_Oil_Change
+            FROM car 
+            WHERE Owner_ID = %s
+            ORDER BY Car_plate
+        """, (owner_id,))
+        
+        cars = cursor.fetchall()
+        
+        # Format dates
+        for car in cars:
+            if car.get('Next_Oil_Change') and hasattr(car['Next_Oil_Change'], 'isoformat'):
+                car['Next_Oil_Change'] = car['Next_Oil_Change'].isoformat()
+        
+        return jsonify({
+            "success": True,
+            "cars": cars,
+            "count": len(cars)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting owner cars: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error getting owner cars: {str(e)}"
+        }), 500
+    finally:
+        _safe_close(cursor, conn)
 # ===============================
 # ERROR HANDLERS
 # ===============================

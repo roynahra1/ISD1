@@ -509,9 +509,8 @@
             <button type="button" id="backBtn" class="btn btn-secondary">← Back to Detection</button>
         </div>
     </div>
-
-    <script>
-        // DOM Elements
+   <script>
+    // DOM Elements
 const carPlateInput = document.getElementById('car_plate');
 const vinInput = document.getElementById('vin');
 const modelInput = document.getElementById('model');
@@ -529,15 +528,6 @@ const carInfoDisplay = document.getElementById('carInfoDisplay');
 const carDetails = document.getElementById('carDetails');
 const nextOilChangeInput = document.getElementById('next_oil_change');
 const mileageInput = document.getElementById('mileage');
-const mileageInfoDiv = document.getElementById('mileageInfo');
-const mileageMessageSpan = document.getElementById('mileageMessage');
-const mileageWarningDiv = document.getElementById('mileageWarning');
-const mileageWarningMessageSpan = document.getElementById('mileageWarningMessage');
-
-// Global variables to store car data
-let currentCarData = null;
-let lastRecordedMileage = 0;
-let carYear = 0;
 
 // Edit car button functionality
 document.getElementById('editCarBtn').addEventListener('click', function() {
@@ -548,6 +538,7 @@ document.getElementById('editCarBtn').addEventListener('click', function() {
         showMessage('No license plate available for editing', 'error');
     }
 });
+
 // Initialize form with data from sessionStorage
 document.addEventListener('DOMContentLoaded', function() {
     // Set today's date
@@ -559,9 +550,6 @@ document.addEventListener('DOMContentLoaded', function() {
         day: 'numeric' 
     });
     currentServiceDateSpan.textContent = todayDisplay;
-
-    // DISABLE PAST DATES
-    disablePastDates();
 
     // Check for stored plate from detection page
     const storedPlate = sessionStorage.getItem('detectedPlate');
@@ -577,13 +565,6 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = true;
     }
 });
-
-// NEW FUNCTION: Disable past dates
-function disablePastDates() {
-    const today = new Date();
-    const todayFormatted = today.toISOString().split('T')[0];
-    nextOilChangeInput.setAttribute('min', todayFormatted);
-}
 
 // Fetch Car Information
 function fetchCarInfo(plateNumber) {
@@ -601,12 +582,8 @@ function fetchCarInfo(plateNumber) {
             showLoading(false);
             
             if (data.success && data.car_info) {
-                currentCarData = data.car_info; // Store car data globally
-                populateCarInfo(currentCarData);
+                populateCarInfo(data.car_info);
                 showMessage('Vehicle information loaded successfully!', 'success');
-                
-                // Fetch the latest service history to get current mileage
-                fetchLatestMileage(plateNumber);
             } else {
                 throw new Error('Car information not available');
             }
@@ -615,37 +592,6 @@ function fetchCarInfo(plateNumber) {
             showLoading(false);
             showMessage('Error loading vehicle information. Please check the license plate.', 'error');
             submitBtn.disabled = true;
-        });
-}
-
-// NEW FUNCTION: Fetch maximum mileage from service history
-function fetchLatestMileage(plateNumber) {
-    fetch(`/mechanic/api/car/${plateNumber}/latest-mileage`)
-        .then(response => {
-            if (!response.ok) {
-                // If this endpoint doesn't exist, use the car info or default to 0
-                return { success: true, latest_mileage: 0 };
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                lastRecordedMileage = data.latest_mileage || 0;
-                
-                // Set minimum mileage value in the input
-                if (lastRecordedMileage > 0) {
-                    mileageInput.setAttribute('min', lastRecordedMileage + 1);
-                    mileageInput.setAttribute('placeholder', `Minimum: ${(lastRecordedMileage + 1).toLocaleString()} km`);
-                    
-                    // Show current mileage info
-                    mileageMessageSpan.textContent = `Maximum recorded mileage: ${lastRecordedMileage.toLocaleString()} km. Please enter a higher value.`;
-                    mileageInfoDiv.style.display = 'block';
-                }
-            }
-        })
-        .catch(error => {
-            console.log('Could not fetch latest mileage, using default validation');
-            lastRecordedMileage = 0;
         });
 }
 
@@ -658,9 +604,6 @@ function populateCarInfo(car) {
     ownerNameInput.value = car.owner_name || 'Not available';
     ownerPhoneInput.value = car.owner_phone || 'Not available';
 
-    // Store car year for mileage validation
-    carYear = parseInt(car.year) || new Date().getFullYear();
-
     // Update car details display
     carDetails.innerHTML = `
         <div><strong>Owner:</strong> ${car.owner_name || 'N/A'}</div>
@@ -669,22 +612,12 @@ function populateCarInfo(car) {
         <div><strong>Model:</strong> ${car.model || 'N/A'}</div>
         <div><strong>Year:</strong> ${car.year || 'N/A'}</div>
         <div><strong>VIN:</strong> ${car.vin || 'N/A'}</div>
-        ${lastRecordedMileage > 0 ? `<div><strong>Maximum Recorded Mileage:</strong> ${lastRecordedMileage.toLocaleString()} km</div>` : ''}
         ${car.next_oil_change ? `<div><strong>Next Oil Change:</strong> ${car.next_oil_change}</div>` : ''}
     `;
 
-    // Pre-fill next oil change if available, but only if it's not a past date
+    // Pre-fill next oil change if available
     if (car.next_oil_change) {
-        const nextOilChangeDate = new Date(car.next_oil_change);
-        const today = new Date();
-        
-        // Only pre-fill if the date is today or in the future
-        if (nextOilChangeDate >= today) {
-            nextOilChangeInput.value = car.next_oil_change;
-        } else {
-            // If it's a past date, show a warning and don't pre-fill
-            showMessage('Previous oil change date has passed. Please set a new future date.', 'warning');
-        }
+        nextOilChangeInput.value = car.next_oil_change;
     }
 
     carInfoDisplay.style.display = 'block';
@@ -696,59 +629,10 @@ submitBtn.addEventListener('click', function() {
     submitService();
 });
 
-// NEW FUNCTION: Strict mileage validation using MAXIMUM mileage
-function validateMileage(newMileage) {
-    // Basic validation
-    if (!newMileage || newMileage <= 0) {
-        return {
-            valid: false,
-            message: 'Mileage must be greater than 0'
-        };
-    }
-
-    // STRICT VALIDATION: Check against MAXIMUM recorded mileage
-    if (lastRecordedMileage > 0 && newMileage <= lastRecordedMileage) {
-        return {
-            valid: false,
-            message: `New mileage (${newMileage.toLocaleString()} km) must be GREATER than maximum recorded mileage (${lastRecordedMileage.toLocaleString()} km)`
-        };
-    }
-    
-    // Check for unrealistic mileage (e.g., more than 1,000,000 km)
-    if (newMileage > 1000000) {
-        return {
-            valid: false,
-            message: 'Mileage seems unusually high. Please verify the value.'
-        };
-    }
-
-    // Check for unrealistic mileage based on car age
-    const currentYear = new Date().getFullYear();
-    const carAge = currentYear - carYear;
-    const reasonableMaxMileage = carAge * 25000 + 50000; // 25,000 km per year + 50,000 base
-    
-    if (newMileage > reasonableMaxMileage) {
-        return {
-            valid: true, // Still valid but show strong warning
-            warning: `High mileage for ${carYear} vehicle (${carAge} years old). Expected maximum: ${reasonableMaxMileage.toLocaleString()} km`
-        };
-    }
-    
-    // Check for unrealistic jump (more than 50,000 km increase)
-    if (lastRecordedMileage > 0 && (newMileage - lastRecordedMileage) > 50000) {
-        return {
-            valid: true, // Still valid but show warning
-            warning: `Large mileage increase detected: ${(newMileage - lastRecordedMileage).toLocaleString()} km since last service. Please verify.`
-        };
-    }
-    
-    return { valid: true };
-}
-
 function submitService() {
     const carPlate = carPlateInput.value.trim();
-    const mileageValue = document.getElementById('mileage').value;
-    const nextOilChange = document.getElementById('next_oil_change').value;
+    const mileageValue = mileageInput.value;
+    const nextOilChange = nextOilChangeInput.value;
     
     // Basic validation
     if (!mileageValue) {
@@ -758,42 +642,14 @@ function submitService() {
         return;
     }
 
-    const mileage = parseInt(mileageValue);
-    
-    // STRICT VALIDATION: Check if mileage is a valid number
-    if (isNaN(mileage)) {
+    // Parse mileage as number
+    const mileage = parseInt(mileageValue.replace(/,/g, ''));
+    if (isNaN(mileage) || mileage <= 0) {
         showMessage('Please enter a valid mileage number', 'error');
         mileageInput.classList.add('input-error');
         mileageInput.focus();
         return;
     }
-
-    // Validate mileage
-    const mileageValidation = validateMileage(mileage);
-    if (!mileageValidation.valid) {
-        showMessage(`❌ ${mileageValidation.message}`, 'error');
-        mileageInput.classList.add('input-error');
-        mileageInput.focus();
-        return;
-    }
-
-    // Validate next oil change date if provided
-    if (nextOilChange) {
-        const selectedDate = new Date(nextOilChange);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        if (selectedDate < today) {
-            showMessage('Next oil change date cannot be in the past. Please select a future date.', 'error');
-            nextOilChangeInput.classList.add('input-error');
-            nextOilChangeInput.focus();
-            return;
-        }
-    }
-
-    // Clear any previous error styling
-    mileageInput.classList.remove('input-error');
-    nextOilChangeInput.classList.remove('input-error');
 
     const formData = {
         car_plate: carPlate,
@@ -806,11 +662,6 @@ function submitService() {
 
     showLoading(true);
     clearMessage();
-
-    // Show warning if applicable (but don't block submission)
-    if (mileageValidation.warning) {
-        showMessage(`⚠️ ${mileageValidation.warning}`, 'warning');
-    }
 
     // Send to backend
     fetch('/mechanic/api/complete-service', {
@@ -828,26 +679,14 @@ function submitService() {
             showMessage(`✅ Service logged successfully! ${data.message}`, 'success');
             submitBtn.disabled = true;
             
-            // Update last recorded mileage for potential subsequent entries
-            lastRecordedMileage = mileage;
-            
             // Clear form but keep vehicle info
-            document.getElementById('mileage').value = '';
+            mileageInput.value = '';
             document.getElementById('notes').value = '';
             document.getElementById('services_performed').selectedIndex = -1;
-            document.getElementById('next_oil_change').value = '';
-            
-            // Update mileage info display
-            mileageMessageSpan.textContent = `Service recorded with ${mileage.toLocaleString()} km (previous max: ${data.previous_max_mileage ? data.previous_max_mileage.toLocaleString() : 'N/A'} km)`;
-            mileageInfoDiv.style.display = 'block';
+            nextOilChangeInput.value = '';
             
         } else {
             showMessage(`❌ ${data.message}`, 'error');
-            // Highlight the problematic field
-            if (data.message.includes('mileage')) {
-                mileageInput.classList.add('input-error');
-                mileageInput.focus();
-            }
         }
     })
     .catch(error => {
@@ -855,41 +694,6 @@ function submitService() {
         showMessage('Error submitting service record. Please try again.', 'error');
     });
 }
-
-// Real-time mileage validation
-mileageInput.addEventListener('blur', function() {
-    const mileageValue = this.value;
-    if (mileageValue) {
-        const mileage = parseInt(mileageValue);
-        const validation = validateMileage(mileage);
-        
-        if (!validation.valid) {
-            showMessage(validation.message, 'error');
-            this.classList.add('input-error');
-            this.classList.remove('input-success', 'input-warning');
-            mileageWarningDiv.style.display = 'none';
-        } else {
-            if (validation.warning) {
-                mileageWarningMessageSpan.textContent = validation.warning;
-                mileageWarningDiv.style.display = 'block';
-                this.classList.add('input-warning');
-                this.classList.remove('input-error', 'input-success');
-            } else {
-                clearMessage();
-                mileageWarningDiv.style.display = 'none';
-                this.classList.add('input-success');
-                this.classList.remove('input-error', 'input-warning');
-            }
-        }
-    }
-});
-
-// Clear error styling when user starts typing
-mileageInput.addEventListener('input', function() {
-    this.classList.remove('input-error', 'input-success', 'input-warning');
-    clearMessage();
-    mileageWarningDiv.style.display = 'none';
-});
 
 // Back to Detection
 backBtn.addEventListener('click', function() {
@@ -918,32 +722,10 @@ document.addEventListener('keypress', function(event) {
     }
 });
 
-// Service selection helper
-document.getElementById('services_performed').addEventListener('change', function() {
-    const selectedCount = this.selectedOptions.length;
-    if (selectedCount > 0) {
-        this.style.borderColor = '#27ae60';
-        this.style.backgroundColor = '#f2fdf2';
-    } else {
-        this.style.borderColor = '#ddd';
-        this.style.backgroundColor = 'white';
-    }
+// Clear error styling when user starts typing
+mileageInput.addEventListener('input', function() {
+    this.classList.remove('input-error');
 });
-
-// Auto-format mileage input
-mileageInput.addEventListener('blur', function() {
-    const value = this.value;
-    if (value && !isNaN(value)) {
-        this.value = parseInt(value).toLocaleString();
-    }
-});
-
-mileageInput.addEventListener('focus', function() {
-    const value = this.value.replace(/,/g, '');
-    if (value && !isNaN(value)) {
-        this.value = value;
-    }
-});
-    </script>
+</script>
 </body>
 </html>

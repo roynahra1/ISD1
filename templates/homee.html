@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>License Plate Detection</title>
+  <title>License Plate Detection & VIN Search</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { background:#1f1f1f; color:#fff; font-family:Arial; padding:20px; text-align:center; }
@@ -11,13 +11,35 @@
     .camera-container { margin:20px 0; position:relative; }
     video { width:100%; background:black; border-radius:10px; }
     .focus-overlay { position:absolute; top:50%; left:50%; width:260px; height:100px; transform:translate(-50%,-50%); border:3px solid #00ff88; border-radius:10px; pointer-events:none; }
-    .controls { margin-top:20px; display:flex; gap:12px; justify-content:center; }
+    .controls { margin-top:20px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
     button { padding:10px 20px; border:none; border-radius:10px; color:white; background:#3498db; cursor:pointer; font-size:16px; transition:background 0.3s; }
     button:hover { background:#2980b9; }
     #result { margin-top:20px; padding:20px; background:#333; border-radius:10px; }
     .success { background: rgba(0,255,150,0.06); padding:10px; border-left:4px solid #00ff88; }
     .error { background: rgba(255,0,0,0.06); padding:10px; border-left:4px solid red; }
-    #manualInput { display:none; margin-top:20px; padding:20px; background:#4a4a4a; border-radius:10px; }
+    .warning { background: rgba(255,193,7,0.06); padding:10px; border-left:4px solid #ffc107; }
+    .info { background: rgba(52,152,219,0.06); padding:10px; border-left:4px solid #3498db; margin:10px 0; }
+    #manualInput, #vinSearch { display:none; margin-top:20px; padding:20px; background:#4a4a4a; border-radius:10px; }
+    .search-tabs { display:flex; margin-bottom:20px; border-bottom:2px solid #444; }
+    .tab-btn { 
+      flex:1; 
+      padding:12px; 
+      background:#333; 
+      border:none; 
+      color:#ccc; 
+      cursor:pointer; 
+      font-size:16px;
+      border-radius:5px 5px 0 0;
+      transition:all 0.3s;
+    }
+    .tab-btn.active { 
+      background:#4a4a4a; 
+      color:white; 
+      border-bottom:3px solid #3498db;
+    }
+    .tab-btn:hover { 
+      background:#444; 
+    }
     .action-btn { 
       display: inline-block; 
       margin-top: 15px; 
@@ -57,41 +79,135 @@
     .buttons-container {
       margin-top: 20px;
     }
+    input[type="text"] { 
+      padding:10px; 
+      width:60%; 
+      border-radius:8px; 
+      border:none; 
+      margin:5px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 16px;
+      letter-spacing: 1px;
+    }
+    .vin-search-btn { 
+      background: #9b59b6; 
+    }
+    .vin-search-btn:hover { 
+      background: #8e44ad; 
+    }
+    .search-section { margin:15px 0; }
+    .debug-info { 
+      background: rgba(0,0,0,0.2); 
+      padding: 10px; 
+      border-radius: 5px; 
+      margin-top: 10px; 
+      font-size: 12px; 
+      text-align: left;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .partial-match { 
+      background: rgba(255,193,7,0.1); 
+      padding: 10px; 
+      border-radius: 8px; 
+      margin: 10px 0;
+      border: 1px solid #ffc107;
+    }
+    .match-option {
+      background: rgba(52, 152, 219, 0.1);
+      padding: 10px;
+      border-radius: 8px;
+      margin: 8px 0;
+      border: 1px solid #3498db;
+    }
+    .match-option h4 {
+      color: #3498db;
+      margin-bottom: 5px;
+    }
+    .format-hint {
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 5px;
+      font-style: italic;
+    }
+    .input-error {
+      border: 2px solid #e74c3c !important;
+      background-color: rgba(231, 76, 60, 0.1);
+    }
+    .input-valid {
+      border: 2px solid #2ecc71 !important;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🚗 License Plate Recognition</h1>
-    <div style="margin-top:10px;">
-      <label>API URL:</label>
-      <input id="apiUrl" type="text" value="/car/detect" style="width:60%; padding:6px; border-radius:8px; border:none;">
+    <h1>🚗 License Plate Recognition & VIN Search</h1>
+    
+    <div class="search-tabs">
+      <button class="tab-btn active" onclick="showTab('camera')">📷 Camera Search</button>
+      <button class="tab-btn" onclick="showTab('manual')">⌨️ Manual Plate</button>
+      <button class="tab-btn" onclick="showTab('vin')">🔍 VIN Search</button>
     </div>
 
-    <div class="camera-container">
-      <video id="video" autoplay playsinline></video>
-      <div class="focus-overlay"></div>
+    <!-- Camera Tab -->
+    <div id="cameraTab" class="tab-content">
+      <div style="margin-top:10px;">
+        <label>API URL:</label>
+        <input id="apiUrl" type="text" value="/car/detect" style="width:60%; padding:6px; border-radius:8px; border:none;">
+      </div>
+
+      <div class="camera-container">
+        <video id="video" autoplay playsinline></video>
+        <div class="focus-overlay"></div>
+      </div>
+
+      <canvas id="canvas" style="display:none;"></canvas>
+
+      <div class="controls">
+        <button onclick="captureAndDetect()">📸 Detect Plate</button>
+        <button onclick="resetUI()">🔄 Reset</button>
+      </div>
     </div>
 
-    <canvas id="canvas" style="display:none;"></canvas>
-
-    <div class="controls">
-      <button onclick="captureAndDetect()">📸 Detect Plate</button>
-      <button onclick="showManualInput()">⌨️ Manual Entry</button>
-      <button onclick="resetUI()">🔄 Reset</button>
+    <!-- Manual Plate Entry Tab -->
+    <div id="manualTab" class="tab-content" style="display:none;">
+      <div class="search-section">
+        <h3>Search by License Plate</h3>
+        <input id="manualPlate" maxlength="7" placeholder="Enter plate number (A123456)" 
+               style="padding:12px; width:70%;" oninput="formatLicensePlate(this)">
+        <div class="format-hint">Format: 1 letter followed by 1-6 digits (e.g., A12345)</div>
+        <br><br>
+        <button onclick="useManualPlate()">🔍 Search Plate</button>
+        <button onclick="resetSearch()">🔄 Clear</button>
+      </div>
     </div>
 
-    <div id="loading" style="display:none; margin:12px;">Processing...</div>
+    <!-- VIN Search Tab -->
+    <div id="vinTab" class="tab-content" style="display:none;">
+      <div class="search-section">
+        <h3>Search by VIN Number</h3>
+        <input id="vinNumber" maxlength="17" placeholder="Enter 17-character VIN (e.g., 1HGCM82633A123456)" 
+               style="padding:12px; width:70%;" oninput="formatVIN(this)">
+        <div class="format-hint">Format: 17 characters (letters and numbers, excluding I, O, Q)</div>
+        <br><br>
+        <button onclick="searchByVIN()" class="vin-search-btn">🔍 Search VIN</button>
+        <button onclick="tryFlexibleVINSearch()" style="background:#e67e22;">🔍 Try Flexible Search</button>
+        <button onclick="resetSearch()">🔄 Clear</button>
+        <div style="margin-top:10px; font-size:12px; color:#aaa;">
+          <em>Flexible search works with partial VIN matches (minimum 3 characters)</em>
+        </div>
+      </div>
+    </div>
+
+    <div id="loading" style="display:none; margin:12px;">
+      <div style="display:flex; align-items:center; justify-content:center;">
+        <div style="width:20px; height:20px; border:3px solid #3498db; border-top:3px solid transparent; border-radius:50%; animation:spin 1s linear infinite; margin-right:10px;"></div>
+        <span id="loadingText">Processing...</span>
+      </div>
+    </div>
 
     <div id="result">
-      <div class="success">Camera Ready — press "Detect Plate"</div>
-    </div>
-
-    <div id="manualInput">
-      <h3>Manual Plate Entry</h3>
-      <input id="manualPlate" maxlength="12" placeholder="Type plate here (ABC1234)" style="padding:10px; width:60%; border-radius:8px; border:none;">
-      <br><br>
-      <button onclick="useManualPlate()">Submit</button>
-      <button onclick="hideManualInput()">Cancel</button>
+      <div class="success">Select a search method above</div>
     </div>
   </div>
 
@@ -101,15 +217,134 @@
     const canvas = document.getElementById("canvas");
     const resultDiv = document.getElementById("result");
     const loading = document.getElementById("loading");
+    const loadingText = document.getElementById("loadingText");
 
-    document.addEventListener("DOMContentLoaded", initializeCamera);
+    document.addEventListener("DOMContentLoaded", function() {
+      initializeCamera();
+      showTab('camera');
+    });
+
+    function showTab(tabName) {
+      // Hide all tabs
+      document.getElementById('cameraTab').style.display = 'none';
+      document.getElementById('manualTab').style.display = 'none';
+      document.getElementById('vinTab').style.display = 'none';
+      
+      // Remove active class from all buttons
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      
+      // Show selected tab and activate button
+      document.getElementById(tabName + 'Tab').style.display = 'block';
+      event.target.classList.add('active');
+      
+      // Stop camera if switching away from camera tab
+      if (tabName !== 'camera') {
+        stopCamera();
+      } else {
+        initializeCamera();
+      }
+      
+      // Clear previous results
+      setResult(`<div class="success">Ready for ${tabName === 'camera' ? 'camera' : tabName} search</div>`);
+    }
+
+    function formatLicensePlate(input) {
+      let value = input.value.toUpperCase();
+      
+      // Remove any non-alphanumeric characters
+      value = value.replace(/[^A-Z0-9]/g, '');
+      
+      // Ensure it starts with a letter
+      if (value.length > 0 && !isNaN(value[0])) {
+        value = '';
+      }
+      
+      // Only allow 1 letter followed by up to 6 digits
+      if (value.length > 0) {
+        const letterPart = value[0];
+        const numberPart = value.substring(1).replace(/[^0-9]/g, '');
+        
+        // Limit numbers to 6 digits
+        const limitedNumberPart = numberPart.substring(0, 6);
+        value = letterPart + limitedNumberPart;
+      }
+      
+      input.value = value;
+      
+      // Validate format
+      const isValid = /^[A-Z][0-9]{1,6}$/.test(value);
+      
+      // Update visual feedback
+      input.classList.remove('input-error', 'input-valid');
+      if (value.length > 0) {
+        if (isValid) {
+          input.classList.add('input-valid');
+        } else {
+          input.classList.add('input-error');
+        }
+      }
+    }
+
+    function formatVIN(input) {
+      let value = input.value.toUpperCase();
+      
+      // Remove invalid characters (I, O, Q are not allowed in VIN)
+      value = value.replace(/[IOQ]/g, '');
+      
+      // Remove any other non-alphanumeric characters
+      value = value.replace(/[^A-Z0-9]/g, '');
+      
+      // Limit to 17 characters
+      value = value.substring(0, 17);
+      
+      input.value = value;
+      
+      // Validate format
+      const isValid = /^[A-HJ-NPR-Z0-9]{17}$/.test(value);
+      
+      // Update visual feedback
+      input.classList.remove('input-error', 'input-valid');
+      if (value.length > 0) {
+        if (value.length === 17 && isValid) {
+          input.classList.add('input-valid');
+        } else if (value.length >= 3) {
+          // Valid for partial search
+          input.classList.add('input-valid');
+        } else if (value.length > 0) {
+          input.classList.add('input-error');
+        }
+      }
+    }
+
+    function validateLicensePlate(plate) {
+      // Format: 1 letter followed by 1-6 digits
+      const regex = /^[A-Z][0-9]{1,6}$/;
+      return regex.test(plate);
+    }
+
+    function validateVIN(vin) {
+      // Standard VIN format: 17 characters, excluding I, O, Q
+      const regex = /^[A-HJ-NPR-Z0-9]{17}$/;
+      return regex.test(vin);
+    }
+
+    function validatePartialVIN(vin) {
+      // For partial search, at least 3 valid characters
+      const regex = /^[A-HJ-NPR-Z0-9]{3,}$/;
+      return regex.test(vin);
+    }
 
     async function initializeCamera() {
       try {
         if (stream) stopCamera();
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: "environment",
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } 
+        });
         video.srcObject = stream;
-        setResult(`<div class="success">Camera initialized</div>`);
       } catch (err) {
         setResult(`<div class="error">Camera Error: ${err.message}</div>`);
       }
@@ -122,33 +357,277 @@
       }
     }
 
-    function proceedToAfterService(plateNumber) {
-      // Store plate in sessionStorage and navigate to after-service form
-      sessionStorage.setItem('detectedPlate', plateNumber);
-      window.location.href = '/after_service_form.html';
+    async function fetchCarInfo(plateNumber) {
+      try {
+        const response = await fetch(`/mechanic/api/car/${encodeURIComponent(plateNumber)}`);
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching car info:', error);
+        return { success: false, message: 'Error fetching car information' };
+      }
     }
 
-    function proceedToAddCar(plateNumber) {
-      // Store plate in sessionStorage and navigate to add car form
-      sessionStorage.setItem('detectedPlate', plateNumber);
-      window.location.href = '/mechanic/addCar.html';
+    async function searchByVIN() {
+      const vinInput = document.getElementById("vinNumber");
+      const vin = vinInput.value.trim().toUpperCase();
+      
+      if (!vin) {
+        setResult(`<div class="error">Please enter a VIN number first</div>`);
+        vinInput.focus();
+        return;
+      }
+      
+      // Validate full VIN format
+      if (vin.length === 17 && !validateVIN(vin)) {
+        setResult(`
+          <div class="error">
+            <h3>❌ Invalid VIN Format</h3>
+            <p>VIN must be 17 characters (letters and numbers).</p>
+            <p><strong>Invalid characters:</strong> I, O, Q are not allowed in VINs.</p>
+            <div class="info">
+              <strong>Valid VIN Example:</strong> 1HGCM82633A123456<br>
+              <strong>Format:</strong> 17 characters, excluding I, O, Q
+            </div>
+          </div>
+        `);
+        vinInput.classList.add('input-error');
+        return;
+      }
+      
+      // Validate partial VIN for search
+      if (vin.length < 3) {
+        setResult(`<div class="error">Please enter at least 3 characters of the VIN</div>`);
+        vinInput.classList.add('input-error');
+        return;
+      }
+      
+      if (!validatePartialVIN(vin)) {
+        setResult(`<div class="error">VIN contains invalid characters (I, O, Q are not allowed)</div>`);
+        vinInput.classList.add('input-error');
+        return;
+      }
+      
+      loading.style.display = "block";
+      loadingText.textContent = "Searching VIN...";
+      setResult("");
+      
+      try {
+        // Use the flexible VIN search endpoint
+        const response = await fetch(`/mechanic/api/search-by-vin-flexible?vin=${encodeURIComponent(vin)}`);
+        const data = await response.json();
+        
+        if (data.success && data.cars && data.cars.length > 0) {
+          if (data.cars.length === 1) {
+            // Single match found
+            const car = data.cars[0];
+            setResult(`
+              <div class="success">
+                <h3>✅ Found Car by VIN</h3>
+                <h2>${car.plate_number}</h2>
+                
+                <div class="car-info">
+                  <strong>VIN:</strong> ${car.vin || 'Unknown'}<br>
+                  <strong>Model:</strong> ${car.model || 'Unknown'}<br>
+                  <strong>Year:</strong> ${car.year || 'Unknown'}<br>
+                  <strong>Owner:</strong> ${car.owner_name || 'Unknown'}<br>
+                  <strong>Phone:</strong> ${car.owner_phone || 'Unknown'}<br>
+                  ${car.owner_email ? `<strong>Email:</strong> ${car.owner_email}<br>` : ''}
+                  ${car.next_oil_change ? `<strong>Next Oil Change:</strong> ${car.next_oil_change}<br>` : ''}
+                </div>
+
+                <div class="buttons-container">
+                  <button onclick="proceedToAfterService('${car.plate_number}')" class="action-btn after-service-btn">
+                    📝 Proceed to After-Service Form
+                  </button>
+                </div>
+              </div>
+            `);
+          } else {
+            // Multiple matches found
+            let html = `<div class="warning">
+              <h3>🔍 Found ${data.matches_found} possible matches for VIN: ${vin}</h3>
+              <p><em>Please select the correct car:</em></p>`;
+            
+            data.cars.forEach((car, index) => {
+              html += `
+              <div class="match-option">
+                <h4>Option ${index + 1}: ${car.plate_number}</h4>
+                <strong>VIN:</strong> ${car.vin}<br>
+                <strong>Model:</strong> ${car.model || 'Unknown'}<br>
+                <strong>Year:</strong> ${car.year || 'Unknown'}<br>
+                <strong>Owner:</strong> ${car.owner_name || 'Unknown'}<br>
+                <strong>Phone:</strong> ${car.owner_phone || 'Unknown'}<br>
+                <button onclick="selectCarFromVINSearch('${car.plate_number}')" 
+                        class="action-btn" style="margin-top:5px; padding:5px 10px; font-size:14px;">
+                  ✅ Select This Car
+                </button>
+              </div>`;
+            });
+            
+            html += `</div>`;
+            setResult(html);
+          }
+        } else {
+          setResult(`
+            <div class="error">
+              <h3>❌ No Cars Found</h3>
+              <p>No cars found with VIN containing: <strong>${vin}</strong></p>
+              <div class="info">
+                <strong>Search tips:</strong>
+                <ul style="text-align:left; margin:10px 0; padding-left:20px;">
+                  <li>Ensure VIN format is correct (17 characters)</li>
+                  <li>Check for typos in the VIN</li>
+                  <li>Try searching by license plate instead</li>
+                  <li>Use flexible search for partial matches</li>
+                </ul>
+              </div>
+              <div class="buttons-container">
+                <button onclick="showTab('manual')" class="action-btn">
+                  🔍 Search by Plate Instead
+                </button>
+                <button onclick="showTab('camera')" class="action-btn">
+                  📷 Use Camera
+                </button>
+              </div>
+            </div>
+          `);
+        }
+      } catch (error) {
+        console.error('VIN search error:', error);
+        setResult(`<div class="error">Error searching VIN: ${error.message}</div>`);
+      }
+      
+      loading.style.display = "none";
     }
 
-   async function fetchCarInfo(plateNumber) {
-  try {
-    // Use the mechanic blueprint endpoint
-    const response = await fetch(`/mechanic/api/car/${plateNumber}`);
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error fetching car info:', error);
-    return { success: false, message: 'Error fetching car information' };
-  }
-}
+    async function tryFlexibleVINSearch() {
+      const vinInput = document.getElementById("vinNumber");
+      const vin = vinInput.value.trim().toUpperCase();
+      
+      if (!vin) {
+        setResult(`<div class="error">Please enter a VIN number first</div>`);
+        vinInput.focus();
+        return;
+      }
+      
+      // Validate partial VIN
+      if (vin.length < 3) {
+        setResult(`<div class="error">Please enter at least 3 characters for flexible search</div>`);
+        vinInput.classList.add('input-error');
+        return;
+      }
+      
+      if (!validatePartialVIN(vin)) {
+        setResult(`<div class="error">VIN contains invalid characters (I, O, Q are not allowed)</div>`);
+        vinInput.classList.add('input-error');
+        return;
+      }
+      
+      loading.style.display = "block";
+      loadingText.textContent = "Searching for partial matches...";
+      setResult("");
+      
+      try {
+        const response = await fetch(`/mechanic/api/search-by-vin-flexible?vin=${encodeURIComponent(vin)}`);
+        const data = await response.json();
+        
+        if (data.success && data.cars && data.cars.length > 0) {
+          let html = `<div class="warning">
+            <h3>🔍 Found ${data.matches_found} possible matches for: ${vin}</h3>
+            <p><em>Showing partial matches. Please select the correct car:</em></p>`;
+          
+          data.cars.forEach((car, index) => {
+            html += `
+            <div class="match-option">
+              <h4>Option ${index + 1}: ${car.plate_number}</h4>
+              <strong>VIN:</strong> ${car.vin}<br>
+              <strong>Model:</strong> ${car.model || 'Unknown'}<br>
+              <strong>Year:</strong> ${car.year || 'Unknown'}<br>
+              <strong>Owner:</strong> ${car.owner_name || 'Unknown'}<br>
+              <strong>Phone:</strong> ${car.owner_phone || 'Unknown'}<br>
+              <button onclick="selectCarFromVINSearch('${car.plate_number}')" 
+                      class="action-btn" style="margin-top:5px; padding:5px 10px; font-size:14px;">
+                ✅ Select This Car
+              </button>
+            </div>`;
+          });
+          
+          html += `</div>`;
+          setResult(html);
+        } else {
+          setResult(`
+            <div class="error">
+              <h3>❌ No Cars Found</h3>
+              <p>No cars found with VIN containing: <strong>${vin}</strong></p>
+              <div class="buttons-container">
+                <button onclick="showTab('manual')" class="action-btn">
+                  🔍 Search by Plate Instead
+                </button>
+                <button onclick="showTab('camera')" class="action-btn">
+                  📷 Use Camera
+                </button>
+                <button onclick="showTab('vin')" class="action-btn">
+                  ↩️ Try Different VIN
+                </button>
+              </div>
+            </div>
+          `);
+        }
+      } catch (error) {
+        console.error('Flexible search error:', error);
+        setResult(`<div class="error">Error in flexible search: ${error.message}</div>`);
+      }
+      
+      loading.style.display = "none";
+    }
+
+    async function selectCarFromVINSearch(plateNumber) {
+      loading.style.display = "block";
+      loadingText.textContent = "Loading car details...";
+      
+      try {
+        const carInfo = await fetchCarInfo(plateNumber);
+        
+        if (carInfo.success) {
+          const car = carInfo.car_info;
+          setResult(`
+            <div class="success">
+              <strong>✅ Car Selected:</strong><br>
+              <h2>${plateNumber}</h2>
+              
+              <div class="car-info">
+                <h3>Car Information:</h3>
+                <strong>VIN:</strong> ${car.vin || 'Unknown'}<br>
+                <strong>Model:</strong> ${car.model || 'Unknown'}<br>
+                <strong>Year:</strong> ${car.year || 'Unknown'}<br>
+                <strong>Owner:</strong> ${car.owner_name || 'Unknown'}<br>
+                <strong>Phone:</strong> ${car.owner_phone || 'Unknown'}<br>
+                <strong>Email:</strong> ${car.owner_email || 'Unknown'}<br>
+                ${car.next_oil_change ? `<strong>Next Oil Change:</strong> ${car.next_oil_change}<br>` : ''}
+              </div>
+
+              <div class="buttons-container">
+                <button onclick="proceedToAfterService('${plateNumber}')" class="action-btn after-service-btn">
+                  📝 Proceed to After-Service Form
+                </button>
+              </div>
+            </div>
+          `);
+        } else {
+          setResult(`<div class="error">Error loading car details: ${carInfo.message}</div>`);
+        }
+      } catch (error) {
+        console.error('Error selecting car:', error);
+        setResult(`<div class="error">Error: ${error.message}</div>`);
+      }
+      
+      loading.style.display = "none";
+    }
 
     async function captureAndDetect() {
       const apiUrl = document.getElementById("apiUrl").value.trim();
       loading.style.display = "block";
+      loadingText.textContent = "Processing image...";
       setResult("");
 
       const ctx = canvas.getContext("2d");
@@ -169,24 +648,21 @@
         } else {
           const plateNumber = data.plate_number;
           
-          // Show initial detection success
           setResult(`
             <div class="success">
               <strong>Plate Detected:</strong><br>
               <h2>${plateNumber}</h2>
-              Confidence: ${data.confidence_percent}%
-              <br>
+              ${data.confidence_percent ? `Confidence: ${data.confidence_percent}%<br>` : ''}
               <div style="margin:15px 0;">
                 <em>Fetching car information from database...</em>
               </div>
             </div>
           `);
 
-          // Fetch car info from database
+          loadingText.textContent = "Fetching car details...";
           const carInfo = await fetchCarInfo(plateNumber);
           
           if (carInfo.success) {
-            // Car exists in database - show car info and after-service button
             const car = carInfo.car_info;
             setResult(`
               <div class="success">
@@ -200,6 +676,7 @@
                   <strong>VIN:</strong> ${car.vin || 'Unknown'}<br>
                   <strong>Owner:</strong> ${car.owner_name || 'Unknown'}<br>
                   <strong>Phone:</strong> ${car.owner_phone || 'Unknown'}<br>
+                  ${car.owner_email ? `<strong>Email:</strong> ${car.owner_email}<br>` : ''}
                   ${car.next_oil_change ? `<strong>Next Oil Change:</strong> ${car.next_oil_change}<br>` : ''}
                 </div>
 
@@ -211,12 +688,10 @@
               </div>
             `);
           } else {
-            // Car not found in database - show add car button
             setResult(`
               <div class="success">
                 <strong>Plate Detected:</strong><br>
                 <h2>${plateNumber}</h2>
-                Confidence: ${data.confidence_percent}%
                 
                 <div class="error" style="margin:15px 0; padding:15px;">
                   <strong>❌ Car Not Found in Database</strong><br>
@@ -240,21 +715,47 @@
     }
 
     async function useManualPlate() {
-      const text = document.getElementById("manualPlate").value.toUpperCase();
-      if (!/^[A-Z0-9]{4,12}$/.test(text)) {
-        alert("Invalid format. Enter something like ABC1234.");
+      const plateInput = document.getElementById("manualPlate");
+      const text = plateInput.value.trim().toUpperCase();
+      
+      if (!text) {
+        setResult(`<div class="error">Please enter a license plate number</div>`);
+        plateInput.focus();
         return;
       }
-
+      
+      // Validate license plate format
+      if (!validateLicensePlate(text)) {
+        setResult(`
+          <div class="error">
+            <h3>❌ Invalid License Plate Format</h3>
+            <p>License plate must be: <strong>1 letter followed by 1-6 digits</strong></p>
+            <div class="info">
+              <strong>Valid Examples:</strong><br>
+              • A12345<br>
+              • B123<br>
+              • C123456
+            </div>
+            <div class="info">
+              <strong>Invalid Examples:</strong><br>
+              • ABC123 (starts with numbers)<br>
+              • A1234567 (more than 6 digits)<br>
+              • 123ABC (starts with number)
+            </div>
+          </div>
+        `);
+        plateInput.classList.add('input-error');
+        return;
+      }
+      
       loading.style.display = "block";
+      loadingText.textContent = "Searching for car...";
       setResult("");
 
       try {
-        // Fetch car info from database for manual entry
         const carInfo = await fetchCarInfo(text);
         
         if (carInfo.success) {
-          // Car exists in database
           const car = carInfo.car_info;
           setResult(`
             <div class="success">
@@ -268,6 +769,7 @@
                 <strong>VIN:</strong> ${car.vin || 'Unknown'}<br>
                 <strong>Owner:</strong> ${car.owner_name || 'Unknown'}<br>
                 <strong>Phone:</strong> ${car.owner_phone || 'Unknown'}<br>
+                ${car.owner_email ? `<strong>Email:</strong> ${car.owner_email}<br>` : ''}
                 ${car.next_oil_change ? `<strong>Next Oil Change:</strong> ${car.next_oil_change}<br>` : ''}
               </div>
 
@@ -279,7 +781,6 @@
             </div>
           `);
         } else {
-          // Car not found in database
           setResult(`
             <div class="success">
               <strong>Manual Plate Entry:</strong><br>
@@ -305,14 +806,40 @@
       loading.style.display = "none";
     }
 
-    function showManualInput() {
-      document.getElementById("manualInput").style.display = "block";
-      stopCamera();
-    }
+    function proceedToAfterService(plateNumber) {
+    console.log('🚀 Going to after-service form for:', plateNumber);
+    
+    // 1. Store in sessionStorage (client-side, immediate)
+    sessionStorage.setItem('detectedPlate', plateNumber);
+    
+    // 2. Store in localStorage as backup
+    localStorage.setItem('lastDetectedPlate', plateNumber);
+    
+    // 3. Navigate to the working route
+    window.location.href = '/after_service_form.html';
+}
 
-    function hideManualInput() {
-      document.getElementById("manualInput").style.display = "none";
-      initializeCamera();
+    function proceedToAddCar(plateNumber) {
+      // Store plate in session via API
+      fetch('/mechanic/api/store-plate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ plate_number: plateNumber })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          window.location.href = '/mechanic/mechanic/addCar.html';
+        } else {
+          alert('Error storing plate: ' + data.message);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Error storing plate');
+      });
     }
 
     function resetUI() {
@@ -320,9 +847,32 @@
       initializeCamera();
     }
 
+    function resetSearch() {
+      const plateInput = document.getElementById("manualPlate");
+      const vinInput = document.getElementById("vinNumber");
+      
+      plateInput.value = "";
+      vinInput.value = "";
+      
+      plateInput.classList.remove('input-error', 'input-valid');
+      vinInput.classList.remove('input-error', 'input-valid');
+      
+      setResult(`<div class="success">Ready for search</div>`);
+    }
+
     function setResult(html) {
       resultDiv.innerHTML = html;
     }
+
+    // Add CSS animation for loading spinner
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
   </script>
 </body>
 </html>

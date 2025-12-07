@@ -63,6 +63,8 @@ def create_app(test_config=None):
             logger.error(f"Database connection failed: {e}")
             return None
 
+
+     
     # ===============================
     # REGISTER BLUEPRINTS (preserve everything)
     # ===============================
@@ -224,7 +226,7 @@ def create_app(test_config=None):
 
     @app.route('/index.html')
     def index_page():
-        return render_template("login.html")
+        return render_template("index.html")
 
     @app.route('/service-history.html')
     def service_history_html():
@@ -289,7 +291,7 @@ def create_app(test_config=None):
             "service": "Auto Service Management System"
         })
 
-    @app.route("/")
+    @app.route("/index.html")
     def index():
         return render_template("index.html")
 
