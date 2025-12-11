@@ -2,6 +2,8 @@
 
 Mechanic / Appointment management web application (Flask). This repository contains a Flask backend, HTML templates, a lightweight plate-detection OCR pipeline, and tests.
 
+[![codecov](https://codecov.io/gh/roynahra1/ISD1/branch/main/graph/badge.svg)](https://codecov.io/gh/roynahra1/ISD1)
+
 This README explains how to set up the development environment on Windows (PowerShell), run the app, run tests, and where to look for the most important pieces of the codebase.
 
 ## Contents
