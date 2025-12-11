@@ -1,21 +1,24 @@
-﻿# ISD-v1.0
+﻿# ISD-v1.0  Appointment & Mechanic Management
 
-Mechanic / Appointment management web application (Flask). This repository contains a Flask backend, HTML templates, a lightweight plate-detection OCR pipeline, and tests.
+A Flask-based service-center application for booking appointments, tracking cars/owners, and supporting mechanics with a dashboard. This repository contains the Flask backend, Jinja2 templates, a plate-detection OCR helper, tests, and developer tooling.
 
-[![codecov](https://codecov.io/gh/roynahra1/ISD1/branch/main/graph/badge.svg)](https://codecov.io/gh/roynahra1/ISD1)
+> Quick: This README targets developers. For running locally, use PowerShell on Windows (examples included).
 
-This README explains how to set up the development environment on Windows (PowerShell), run the app, run tests, and where to look for the most important pieces of the codebase.
+---
 
-## Contents
+## Table of contents
 - Project overview
-- Requirements & dependencies
-- Environment variables
+- Quickstart (Windows)
+- Prerequisites
+- Installation
+- Configuration (`.env`)
 - Database setup
-- Run locally (development)
+- Running the app (dev)
 - Testing
-- Plate detection notes
-- Key project files & routes
-- Developer guidance
+- Plate detection (Tesseract + notes)
+- API reference (common endpoints)
+- Developer notes & coding conventions
+- Troubleshooting
 - Contributing
 - License
 
@@ -23,43 +26,77 @@ This README explains how to set up the development environment on Windows (Power
 
 ## Project overview
 
-This project implements a small service center application. Core features include:
-- User authentication (client + mechanic)
-- Owner / Car / Appointment management
-- Mechanic dashboard with statistics and recent activity
-- License plate detection / OCR utilities
-- Tests (pytest)
+The app supports two primary roles:
+- Owners / Clients: sign up, manage cars, book appointments
+- Mechanics: manage appointments, mark services complete, view dashboard
 
-The backend is a Flask app with blueprint-based routes under `routes/`. Templates live in `templates/`. Utilities are under `utils/`.
+Key components:
+- `routes/`  Flask Blueprints for `auth`, `appointment`, `mechanic`, `detection`, etc.
+- `templates/`  Jinja2 HTML templates (client and mechanic views)
+- `utils/`  helpers (database connection, helpers)
+- `plate_detector.py`  OCR + image processing helper (OpenCV + pytesseract)
+- `tests/`  pytest-based test suite
 
-## Requirements & dependencies
+---
 
-- Python 3.10+ recommended
-- System dependencies: MySQL server (or compatible), and optionally Tesseract OCR for the plate detector.
-- Python dependencies: listed in `requirements.txt` and `requirements-full.txt` (development extras in `requirements-dev.txt`).
+## Quickstart (Windows PowerShell)
 
-Install Python packages in a virtual environment (PowerShell example):
+1. Open PowerShell in the project root.
+2. Create and activate a virtual environment:
 
 ```powershell
 python -m venv .venv
-.\\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+.\.venv\Scripts\Activate.ps1
 ```
 
-## Environment variables
+3. Install dependencies:
 
-Create a `.env` file in the project root or set environment variables in your shell. Typical variables the app expects (defaults are shown in `app.create_app`):
+```powershell
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
 
-- `APP_SECRET_KEY`  Flask secret key (default in dev: `dev-secret-key-for-testing`)
-- `DB_HOST`  MySQL host (default `127.0.0.1`)
-- `DB_PORT`  MySQL port (default `3306`)
-- `DB_USER`  MySQL user
-- `DB_PASSWORD`  MySQL password
-- `DB_NAME`  MySQL database name (e.g., `isd`)
+4. Copy environment example (create `.env`) and set DB creds (see next section).
+5. Run database setup (or apply migrations):
 
-Example `.env` (do not commit `.env` to git):
+```powershell
+python setup_database.py
+```
+
+6. Start the development server:
+
+```powershell
+python run.py
+```
+
+Open `http://127.0.0.1:5000` in your browser.
+
+---
+
+## Prerequisites
+
+- Python 3.10+
+- MySQL server (or compatible) for production/test DB
+- Optional but recommended: Tesseract OCR (Windows installer) for `plate_detector.py` functionality
+
+Tesseract recommendation (Windows):
+- Download and install from https://github.com/tesseract-ocr/tesseract/releases
+- Add `C:\Program Files\Tesseract-OCR\` to your PATH, or set `pytesseract.pytesseract.tesseract_cmd` in code.
+
+---
+
+## Installation & Dependencies
+
+- `requirements.txt` contains runtime deps.
+- `requirements-dev.txt` contains dev/test extras.
+
+Install them as shown in Quickstart. If you need the full optional packages (CV, YOLO weights), use `requirements-full.txt`.
+
+---
+
+## Configuration (`.env`)
+
+Create a `.env` in the repo root (DO NOT commit it). Example values:
 
 ```env
 APP_SECRET_KEY=change-me-for-prod
@@ -70,101 +107,150 @@ DB_PASSWORD=secret
 DB_NAME=isd
 ```
 
-On PowerShell you can set one-off vars before launching the app:
+Environment variables are read by the app factory (`app.create_app`). Use PowerShell to export temporarily:
 
 ```powershell
-$env:DB_HOST = '127.0.0.1'; $env:DB_USER = 'root'; $env:DB_PASSWORD = 'secret'; $env:DB_NAME = 'isd'; python run.py
+$env:DB_HOST='127.0.0.1'; $env:DB_USER='root'; $env:DB_PASSWORD='secret'; $env:DB_NAME='isd'
+python run.py
 ```
+
+---
 
 ## Database setup
 
-The repo includes `setup_database.py` which contains database initialization logic. Review it and run it against a test MySQL instance to initialize schema and sample data. Typical flow:
+This repo includes `setup_database.py` to create tables and optional seed data. Inspect the script before running on a production DB.
 
 ```powershell
 python setup_database.py
 ```
 
-If you already have a DB migration process, adapt the schema or run migrations accordingly. The tests expect the DB schema to be present.
+If you use migrations, adapt `setup_database.py` or switch to your migration tool (Alembic, Flask-Migrate, etc.).
 
-## Run locally (development)
+---
 
-There are multiple entry points. The app factory lives in `app.py`. To run in development mode:
+## Run (development)
+
+Start the app with:
 
 ```powershell
 python run.py
 ```
 
-The server will listen on the port configured in `run.py` or default Flask port 5000.
+For debugging/reloading you can set Flask debug mode in `run.py` or environment variables. Avoid debug mode in production.
+
+---
 
 ## Testing
 
-Tests use `pytest`. Run tests from the repo root with the venv active:
+Run the full test suite with pytest (venv active):
 
 ```powershell
 python -m pytest -q
-# or to run a single test file
+```
+
+Run a single test:
+
+```powershell
 python -m pytest tests/test_auth_routes.py::test_signup_success -q
 ```
 
-If tests rely on a test database, ensure environment variables point to a disposable database or use mocking in tests. See `tests/conftest.py` for fixtures.
+Notes:
+- Tests may require a test database or use fixtures from `tests/conftest.py`.
+- If tests fail due to DB state, reset schema with `setup_database.py` or use a disposable DB.
 
-## Plate detection notes (OCR + detector)
+---
 
-The project contains a simple plate detector utility at `plate_detector.py`. Important notes:
-- It uses OpenCV + pytesseract. Install system Tesseract (Windows: install Tesseract-OCR and ensure it's on PATH or install at `C:\Program Files\Tesseract-OCR\tesseract.exe`).
-- The detector includes preprocessing (CLAHE, thresholding) and multiple OCR configurations. You can tune `min_confidence` near the top of `WorkingPlateDetector`.
-- Model weights: some repos include a `models/` folder (e.g., `yolov8_lp.pt`) for YOLO-based detectors. This project also contains an OCR fallback in `plate_detector.py` and uses Tesseract.
+## Plate detection (OCR + plate_detector.py)
 
-If you rely on the plate detector in production, consider:
-- running the model on a GPU-enabled environment
-- collecting sample plates to tune regex/whitelist
-- enabling debug mode to save candidate crops for offline analysis
+`plate_detector.py` provides a lightweight OCR-based fallback to detect license plates. It uses OpenCV preprocessing and `pytesseract`.
 
-## Key project files & routes (quick reference)
+Key tips:
+- Install Tesseract and ensure it's reachable (PATH) or set `pytesseract.pytesseract.tesseract_cmd` to the binary.
+- If detection quality is low, collect example images and tune:
+  - contrast/CLAHE settings
+  - Tesseract PSM/OEM and whitelist
+  - cropping / rotation retry thresholds
+- The repo contains `models/` for optional detector weights (YOLO). If you enable that path, ensure correct model version and hardware support.
 
-- `app.py`  app factory and Flask configuration
-- `run.py`  app entry point used to start the server
-- `routes/auth_routes.py`  signup, login, logout, owner linking
-- `routes/appointment_routes.py`  appointment booking, search, update
-- `routes/mechanic_routes.py`  mechanic dashboard APIs and admin features
-- `templates/`  HTML templates (client and mechanic pages)
-- `plate_detector.py`  OCR-based plate detector
-- `utils/database.py`  DB helper functions
-- `tests/`  pytest test suite
+---
 
-### Example endpoints you may call (non-exhaustive)
+## API reference (common endpoints)
 
-- `POST /signup`  create account + owner
-- `POST /login`  login
-- `GET /mechanic/dashboard`  mechanic dashboard (template)
-- `GET /mechanic/api/dashboard-stats`  dashboard statistics (JSON, mechanic only)
-- `GET /mechanic/api/recent-activity`  recent activities (supports `?limit=8&offset=0`)
-- `POST /mechanic/api/complete-service`  complete a service (requires JSON body)
-- `POST /book`  book appointment (client)
+Below are the most-used endpoints and example requests (JSON or form data). Adjust `Host`/port as appropriate (default `http://127.0.0.1:5000`).
 
-See the `routes/` folder for full endpoints and parameters.
+- POST `/signup`  register owner + account
+  - form fields: `username`, `email`, `password`, `owner_name`, `phone`
+  - curl example (form):
 
-## Developer guidance & style
+```bash
+curl -X POST http://127.0.0.1:5000/signup -F "username=joe" -F "password=secret" -F "owner_name=Joe Smith"
+```
 
-- **Logging**: use the module `logger` (already used across code). Avoid `print()` in server code.
-- **Database**: use parameterized queries (already present). Prefer `cursor(dictionary=True)` for readability when selecting named columns.
-- **Sessions**: Flask `session` stores `logged_in`, `mechanic_logged_in`, and related user data. Clear session on logout.
-- **Tests**: add fixtures in `tests/conftest.py` to mock DB connections or provide a test DB instance.
+- POST `/login`  login (creates session)
+  - form: `username`, `password`
+
+- POST `/book`  book an appointment
+  - form fields: `owner_id` (or session user), `car_plate`, `car_model`, `car_year`, `service_id`, `date`, `time`
+
+- GET `/mechanic/api/recent-activity`  recent activities (mechanic-only)
+  - supports `?limit=8&offset=0`
+
+- POST `/mechanic/api/complete-service`  mark service complete (JSON)
+  - Example payload: `{ "appointment_id": 42, "notes": "Done", "status": "completed" }`
+
+See `routes/` for full parameter lists and behavior.
+
+---
+
+## Developer notes & conventions
+
+- Logging: prefer the `logger` module (configured in app). Avoid `print()` in server code.
+- Database: use parameterized queries to avoid SQL injection. Prefer `cursor(dictionary=True)` when reading rows.
+- Sessions: `session['logged_in']`, `session['owner_id']`, and `session['mechanic_logged_in']` are used. Ensure session is cleared on logout.
+- Frontend templates: use Jinja includes (`templates/topbar.html`) for common UI elements.
+- Tests: add pytest fixtures to `tests/conftest.py` for DB or app context.
+
+Security:
+- Never commit `.env` or DB credentials.
+- Use a strong `APP_SECRET_KEY` for production and secure session cookies.
+
+---
+
+## Troubleshooting
+
+- Tests failing due to DB: ensure `.env` points to a test database and re-run `setup_database.py`.
+- Tesseract not found: set `pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"` before calling OCR.
+- Pages accessible after logout: ensure protected templates include JS auth-check or server-side `login_required` checks.
+
+---
 
 ## Contributing
 
 1. Fork the repo
 2. Create a feature branch
-3. Run tests locally and add tests for new behavior
-4. Submit a PR with a clear description and CI passing
+3. Add tests for new behavior
+4. Run test suite and ensure green
+5. Submit PR with description and code review
 
-## Security & production notes
+---
 
-- Do not use the dev `APP_SECRET_KEY` in production. Use a strong secret and store it securely.
-- Set `SESSION_COOKIE_SECURE=True` when deploying over HTTPS.
-- Lock down DB credentials and consider read-only accounts for certain endpoints.
-- Sanitize and validate all user inputs on both client and server sides.
+## Quick commands
 
-## License
+```powershell
+# activate venv
+.\.venv\Scripts\Activate.ps1
+# run tests
+python -m pytest -q
+# start dev server
+python run.py
+```
 
-Add a license file if you plan to open-source this repository. No license is included by default.
+---
+
+If you'd like, I can:
+- add a `.env.example` file to the repo,
+- add more API examples (full request + expected response),
+- add a `Make.ps1` or `scripts/` folder with helpers for dev tasks,
+- add CI configuration snippets (GitHub Actions) to run tests and report code coverage.
+
+Please tell me which of these you'd like next.
