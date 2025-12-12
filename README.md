@@ -4,254 +4,148 @@ Mechanic / Appointment management web application (Flask).
 
 [![codecov](https://codecov.io/gh/roynahra1/ISD1/branch/main/graph/badge.svg)](https://codecov.io/gh/roynahra1/ISD1)
 
-This README now includes a detailed developer guide and a quick-reference layout inspired by an "AI CV Builder" README: clear Requirements, Backend (FastAPI) and Frontend (React) setup, LLM (Ollama) notes, testing and CI pointers, and PDF/template info.
+This repository contains a Flask backend, Jinja2 templates, a plate-detection OCR helper, and tests.
 
 ---
 
-## Quick summary
+## Quickstart (Windows PowerShell)
 
-To run locally (developer flow):
-
-1. Install system prerequisites (Node, Python, Git, Ollama if using AI features).
-2. Create a Python venv inside `backend/`, install deps, create `.env`.
-3. Run `python setup_database.py` (or migrations) to initialize DB.
-4. Start backend: `python run.py` (or `uvicorn app.main:app --reload --port 8000`).
-5. Install frontend deps from project root and start React dev server: `npm install` then `npm start`.
-
-Detailed sections follow.
-
----
-
-## 1. Requirements
-
-Make sure these are installed on the machine:
-
-- Node.js  18 and npm
-- Python  3.10
-- Git
-- Ollama (for the AI features; optional but required for LLM analysis)
-
-No external DB server required; SQLite is used by default.
-
----
-
-## 2. Clone the repository
-
-```bash
-git clone https://github.com/your-org/your-repo.git
-cd your-repo
-```
-
-Project layout (example):
-
-```
-backend/        # FastAPI app
-src/            # React frontend (Create React App)
-package.json    # top-level frontend/npm config
-README.md
-```
-
----
-
-## 3. Backend setup (FastAPI)
-
-3.1 Create and activate virtual environment
+1. Clone the repository:
 
 ```powershell
-cd backend
-python -m venv .venv
-# Windows
-.\.venv\Scripts\Activate.ps1
-# macOS / Linux
-# source .venv/bin/activate
+git clone https://github.com/roynahra1/ISD1.git
+cd ISD1
 ```
 
-3.2 Install Python dependencies
+2. Create and activate a Python virtual environment (from repo root):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+3. Install Python dependencies:
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-3.3 Environment variables
-
-Create `backend/.env` with values similar to:
-
-```env
-# FastAPI
-SECRET_KEY=change_me_to_a_random_long_string
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-
-# SQLite
-DATABASE_URL=sqlite:///./app.db
-
-# CORS / frontend URL
-FRONTEND_ORIGIN=http://localhost:3000
-
-# Ollama / LLM (optional)
-OLLAMA_URL=http://localhost:11434
-OLLAMA_MODEL=llama3
-
-# Google OAuth (optional)
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-```
-
-3.4 Initialize / migrate the database
-
-If the project provides a migration script (e.g. `migrate_db.py`), run it:
+4. Create environment variables (see `Environment variables` section) and initialize the database:
 
 ```powershell
-python migrate_db.py
+python setup_database.py
 ```
 
-Otherwise, the SQLite file will usually be created on first run or when the app initializes the schema.
-
-3.5 Start the backend server
+5. Run the app (development):
 
 ```powershell
-uvicorn app.main:app --reload --port 8000
+python run.py
+# or
+uvicorn app.main:app --reload --port 5000
 ```
 
-API base URL: `http://localhost:8000`
-Swagger UI: `http://localhost:8000/docs`
+Open `http://127.0.0.1:5000` in your browser.
 
 ---
 
-## 4. LLM setup (Ollama)
+## Requirements
 
-Ollama provides a local LLM service used by the app for CV analysis/polishing.
+- Python 3.10+
+- MySQL server (optional)  SQLite is supported by default
+- Tesseract OCR (optional) for plate detection features
 
-1. Install Ollama using official instructions: https://ollama.com
-2. Ensure Ollama daemon is running (default API: `http://localhost:11434`).
-3. Pull the model used in `.env`:
-
-```bash
-ollama pull llama3
-```
-
-If Ollama is not running or the model is missing, AI analysis endpoints should gracefully fall back (app should handle 502s or errors and use a non-LLM analysis path).
+Install Python packages from `requirements.txt`.
 
 ---
 
-## 5. Frontend setup (React)
+## Environment variables
 
-From the project root (not inside `backend/`):
-
-```bash
-npm install
-```
-
-5.1 Frontend environment variables
-
-Create a `.env` in the project root with at least:
+Create a `.env` (or set environment variables) with the values your deployment requires. Typical variables used by the app:
 
 ```
-REACT_APP_API_BASE=http://localhost:8000
+APP_SECRET_KEY=change-me
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=secret
+DB_NAME=isd
 ```
 
-5.2 Run the React dev server
-
-```bash
-npm start
-```
-
-Open: `http://localhost:3000`
-
-User flows:
-- Fill personal info, education, experience, skills, etc.
-- Optionally sign in (email or Google OAuth if configured).
-- Use Analyze (AI) to get automatic feedback (requires Ollama).
-- Download PDF via the provided templates.
+The app will use SQLite if `DATABASE_URL` or DB settings are not configured.
 
 ---
 
-## 6. Running tests & coverage
+## Database setup
 
-### Frontend
-
-```bash
-npm test
-```
-
-### Backend
-
-From `backend/` with the venv activated:
+Run the provided `setup_database.py` to create tables and optional seed data:
 
 ```powershell
-pytest
-# or with coverage
-pytest --cov=app
+python setup_database.py
 ```
 
-CI (GitHub Actions) should run tests and publish coverage to Codecov.
+Inspect the script before running on production data.
 
 ---
 
-## 7. PDF templates & generation
+## Testing
 
-The backend typically contains modules like:
-
-- `pdf_logic.py`  prepares CV data and integrates with the LLM for suggestions
-- `pdf_templates.py`  template definitions (e.g. `default`, `modern_blue`, `linkedin`)
-- `pdf_generation.py`  endpoint that receives CV JSON and returns a generated PDF
-
-To switch templates, update the template parameter in the frontend or the backend endpoint call (e.g. pass `template: "modern_blue"`).
-
----
-
-## 8. CI & Codecov
-
-Add a GitHub Actions workflow to run tests on push and PRs. Example responsibilities:
-- Install Python and Node
-- Run backend and frontend tests
-- Upload coverage to Codecov
-
-Badge (example):
-
-```
-[![codecov](https://codecov.io/gh/your-org/your-repo/branch/main/graph/badge.svg)](https://codecov.io/gh/your-org/your-repo)
-```
-
----
-
-## 9. Quick troubleshooting
-
-- LLM analysis failing (502): ensure Ollama is running and the model is pulled.
-- Tests failing due to DB: reset `app.db` or run migration script and ensure `.env` points to the correct DB.
-- OAuth issues: verify redirect URIs in provider console (Google) and matching client secrets in `.env`.
-
----
-
-## 10. Quick commands
+Run the pytest test suite from the repository root:
 
 ```powershell
-# Backend venv creation
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python migrate_db.py   # optional
-uvicorn app.main:app --reload --port 8000
-
-# Frontend
-cd ..
-npm install
-npm start
-
-# Tests
-# Backend
 python -m pytest -q
-# Frontend
-npm test
+```
+
+Coverage is supported in CI; locally you can run:
+
+```powershell
+pytest --cov=.
 ```
 
 ---
 
-If you want, I will:
-- add a `.env.example` file to the repo,
-- add a `backend/migrate_db.py` template (if migrations are missing),
-- create a GitHub Actions workflow that runs tests and posts coverage to Codecov,
-- add sample curl/Postman examples for the main API endpoints.
+## Plate detection (OCR)
 
-Please tell me which follow-up tasks you'd like me to do next.
+The project includes `plate_detector.py` which uses OpenCV and `pytesseract` for OCR-based plate recognition. Notes:
+
+- Install Tesseract-OCR on Windows and ensure the binary is on PATH (`C:\Program Files\Tesseract-OCR\tesseract.exe`).
+- The detector supports multiple preprocessing steps; tune thresholds and OCR configs for your dataset.
+
+---
+
+## Key files and folders
+
+- `app.py`  Flask app factory and configuration
+- `run.py`  app entry point
+- `routes/`  Flask blueprints for authentication, appointments, mechanics, detection, etc.
+- `templates/`  Jinja2 HTML templates
+- `utils/`  helper modules (database connection, utilities)
+- `plate_detector.py`  OCR-based plate detection helper
+- `models/`  optional model weights (if used)
+- `tests/`  pytest test suite
+
+---
+
+## Troubleshooting
+
+- App pages accessible after logout: ensure session handling and template-level auth checks are in place.
+- Tests failing due to DB state: recreate or reset the DB and re-run `setup_database.py`.
+- Plate detection poor results: provide sample images and tune preprocessing or try expanding OCR whitelists.
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create a feature branch
+3. Add tests for new behavior
+4. Open a pull request describing the change
+
+---
+
+If you want, I can also:
+- add a `.env.example` file,
+- add a `backend/migrate_db.py` helper script,
+- create a GitHub Actions workflow to run tests and upload coverage to Codecov,
+- add a short developer setup script (`scripts/setup.ps1`).
+
+Please tell me which follow-up you'd like.
