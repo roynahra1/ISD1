@@ -1,256 +1,257 @@
-﻿# ISD-v1.0  Appointment & Mechanic Management
+﻿# ISD-v1.0
 
-A Flask-based service-center application for booking appointments, tracking cars/owners, and supporting mechanics with a dashboard. This repository contains the Flask backend, Jinja2 templates, a plate-detection OCR helper, tests, and developer tooling.
+Mechanic / Appointment management web application (Flask).
 
-> Quick: This README targets developers. For running locally, use PowerShell on Windows (examples included).
+[![codecov](https://codecov.io/gh/roynahra1/ISD1/branch/main/graph/badge.svg)](https://codecov.io/gh/roynahra1/ISD1)
 
----
-
-## Table of contents
-- Project overview
-- Quickstart (Windows)
-- Prerequisites
-- Installation
-- Configuration (`.env`)
-- Database setup
-- Running the app (dev)
-- Testing
-- Plate detection (Tesseract + notes)
-- API reference (common endpoints)
-- Developer notes & coding conventions
-- Troubleshooting
-- Contributing
-- License
+This README now includes a detailed developer guide and a quick-reference layout inspired by an "AI CV Builder" README: clear Requirements, Backend (FastAPI) and Frontend (React) setup, LLM (Ollama) notes, testing and CI pointers, and PDF/template info.
 
 ---
 
-## Project overview
+## Quick summary
 
-The app supports two primary roles:
-- Owners / Clients: sign up, manage cars, book appointments
-- Mechanics: manage appointments, mark services complete, view dashboard
+To run locally (developer flow):
 
-Key components:
-- `routes/`  Flask Blueprints for `auth`, `appointment`, `mechanic`, `detection`, etc.
-- `templates/`  Jinja2 HTML templates (client and mechanic views)
-- `utils/`  helpers (database connection, helpers)
-- `plate_detector.py`  OCR + image processing helper (OpenCV + pytesseract)
-- `tests/`  pytest-based test suite
+1. Install system prerequisites (Node, Python, Git, Ollama if using AI features).
+2. Create a Python venv inside `backend/`, install deps, create `.env`.
+3. Run `python setup_database.py` (or migrations) to initialize DB.
+4. Start backend: `python run.py` (or `uvicorn app.main:app --reload --port 8000`).
+5. Install frontend deps from project root and start React dev server: `npm install` then `npm start`.
+
+Detailed sections follow.
 
 ---
 
-## Quickstart (Windows PowerShell)
+## 1. Requirements
 
-1. Open PowerShell in the project root.
-2. Create and activate a virtual environment:
+Make sure these are installed on the machine:
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+- Node.js  18 and npm
+- Python  3.10
+- Git
+- Ollama (for the AI features; optional but required for LLM analysis)
+
+No external DB server required; SQLite is used by default.
+
+---
+
+## 2. Clone the repository
+
+```bash
+git clone https://github.com/your-org/your-repo.git
+cd your-repo
 ```
 
-3. Install dependencies:
+Project layout (example):
+
+```
+backend/        # FastAPI app
+src/            # React frontend (Create React App)
+package.json    # top-level frontend/npm config
+README.md
+```
+
+---
+
+## 3. Backend setup (FastAPI)
+
+3.1 Create and activate virtual environment
 
 ```powershell
-python -m pip install --upgrade pip
+cd backend
+python -m venv .venv
+# Windows
+.\.venv\Scripts\Activate.ps1
+# macOS / Linux
+# source .venv/bin/activate
+```
+
+3.2 Install Python dependencies
+
+```powershell
 pip install -r requirements.txt
 ```
 
-4. Copy environment example (create `.env`) and set DB creds (see next section).
-5. Run database setup (or apply migrations):
+3.3 Environment variables
 
-```powershell
-python setup_database.py
-```
-
-6. Start the development server:
-
-```powershell
-python run.py
-```
-
-Open `http://127.0.0.1:5000` in your browser.
-
----
-
-## Prerequisites
-
-- Python 3.10+
-- MySQL server (or compatible) for production/test DB
-- Optional but recommended: Tesseract OCR (Windows installer) for `plate_detector.py` functionality
-
-Tesseract recommendation (Windows):
-- Download and install from https://github.com/tesseract-ocr/tesseract/releases
-- Add `C:\Program Files\Tesseract-OCR\` to your PATH, or set `pytesseract.pytesseract.tesseract_cmd` in code.
-
----
-
-## Installation & Dependencies
-
-- `requirements.txt` contains runtime deps.
-- `requirements-dev.txt` contains dev/test extras.
-
-Install them as shown in Quickstart. If you need the full optional packages (CV, YOLO weights), use `requirements-full.txt`.
-
----
-
-## Configuration (`.env`)
-
-Create a `.env` in the repo root (DO NOT commit it). Example values:
+Create `backend/.env` with values similar to:
 
 ```env
-APP_SECRET_KEY=change-me-for-prod
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=secret
-DB_NAME=isd
+# FastAPI
+SECRET_KEY=change_me_to_a_random_long_string
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+
+# SQLite
+DATABASE_URL=sqlite:///./app.db
+
+# CORS / frontend URL
+FRONTEND_ORIGIN=http://localhost:3000
+
+# Ollama / LLM (optional)
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL=llama3
+
+# Google OAuth (optional)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 ```
 
-Environment variables are read by the app factory (`app.create_app`). Use PowerShell to export temporarily:
+3.4 Initialize / migrate the database
+
+If the project provides a migration script (e.g. `migrate_db.py`), run it:
 
 ```powershell
-$env:DB_HOST='127.0.0.1'; $env:DB_USER='root'; $env:DB_PASSWORD='secret'; $env:DB_NAME='isd'
-python run.py
+python migrate_db.py
 ```
+
+Otherwise, the SQLite file will usually be created on first run or when the app initializes the schema.
+
+3.5 Start the backend server
+
+```powershell
+uvicorn app.main:app --reload --port 8000
+```
+
+API base URL: `http://localhost:8000`
+Swagger UI: `http://localhost:8000/docs`
 
 ---
 
-## Database setup
+## 4. LLM setup (Ollama)
 
-This repo includes `setup_database.py` to create tables and optional seed data. Inspect the script before running on a production DB.
+Ollama provides a local LLM service used by the app for CV analysis/polishing.
 
-```powershell
-python setup_database.py
-```
-
-If you use migrations, adapt `setup_database.py` or switch to your migration tool (Alembic, Flask-Migrate, etc.).
-
----
-
-## Run (development)
-
-Start the app with:
-
-```powershell
-python run.py
-```
-
-For debugging/reloading you can set Flask debug mode in `run.py` or environment variables. Avoid debug mode in production.
-
----
-
-## Testing
-
-Run the full test suite with pytest (venv active):
-
-```powershell
-python -m pytest -q
-```
-
-Run a single test:
-
-```powershell
-python -m pytest tests/test_auth_routes.py::test_signup_success -q
-```
-
-Notes:
-- Tests may require a test database or use fixtures from `tests/conftest.py`.
-- If tests fail due to DB state, reset schema with `setup_database.py` or use a disposable DB.
-
----
-
-## Plate detection (OCR + plate_detector.py)
-
-`plate_detector.py` provides a lightweight OCR-based fallback to detect license plates. It uses OpenCV preprocessing and `pytesseract`.
-
-Key tips:
-- Install Tesseract and ensure it's reachable (PATH) or set `pytesseract.pytesseract.tesseract_cmd` to the binary.
-- If detection quality is low, collect example images and tune:
-  - contrast/CLAHE settings
-  - Tesseract PSM/OEM and whitelist
-  - cropping / rotation retry thresholds
-- The repo contains `models/` for optional detector weights (YOLO). If you enable that path, ensure correct model version and hardware support.
-
----
-
-## API reference (common endpoints)
-
-Below are the most-used endpoints and example requests (JSON or form data). Adjust `Host`/port as appropriate (default `http://127.0.0.1:5000`).
-
-- POST `/signup`  register owner + account
-  - form fields: `username`, `email`, `password`, `owner_name`, `phone`
-  - curl example (form):
+1. Install Ollama using official instructions: https://ollama.com
+2. Ensure Ollama daemon is running (default API: `http://localhost:11434`).
+3. Pull the model used in `.env`:
 
 ```bash
-curl -X POST http://127.0.0.1:5000/signup -F "username=joe" -F "password=secret" -F "owner_name=Joe Smith"
+ollama pull llama3
 ```
 
-- POST `/login`  login (creates session)
-  - form: `username`, `password`
-
-- POST `/book`  book an appointment
-  - form fields: `owner_id` (or session user), `car_plate`, `car_model`, `car_year`, `service_id`, `date`, `time`
-
-- GET `/mechanic/api/recent-activity`  recent activities (mechanic-only)
-  - supports `?limit=8&offset=0`
-
-- POST `/mechanic/api/complete-service`  mark service complete (JSON)
-  - Example payload: `{ "appointment_id": 42, "notes": "Done", "status": "completed" }`
-
-See `routes/` for full parameter lists and behavior.
+If Ollama is not running or the model is missing, AI analysis endpoints should gracefully fall back (app should handle 502s or errors and use a non-LLM analysis path).
 
 ---
 
-## Developer notes & conventions
+## 5. Frontend setup (React)
 
-- Logging: prefer the `logger` module (configured in app). Avoid `print()` in server code.
-- Database: use parameterized queries to avoid SQL injection. Prefer `cursor(dictionary=True)` when reading rows.
-- Sessions: `session['logged_in']`, `session['owner_id']`, and `session['mechanic_logged_in']` are used. Ensure session is cleared on logout.
-- Frontend templates: use Jinja includes (`templates/topbar.html`) for common UI elements.
-- Tests: add pytest fixtures to `tests/conftest.py` for DB or app context.
+From the project root (not inside `backend/`):
 
-Security:
-- Never commit `.env` or DB credentials.
-- Use a strong `APP_SECRET_KEY` for production and secure session cookies.
+```bash
+npm install
+```
+
+5.1 Frontend environment variables
+
+Create a `.env` in the project root with at least:
+
+```
+REACT_APP_API_BASE=http://localhost:8000
+```
+
+5.2 Run the React dev server
+
+```bash
+npm start
+```
+
+Open: `http://localhost:3000`
+
+User flows:
+- Fill personal info, education, experience, skills, etc.
+- Optionally sign in (email or Google OAuth if configured).
+- Use Analyze (AI) to get automatic feedback (requires Ollama).
+- Download PDF via the provided templates.
 
 ---
 
-## Troubleshooting
+## 6. Running tests & coverage
 
-- Tests failing due to DB: ensure `.env` points to a test database and re-run `setup_database.py`.
-- Tesseract not found: set `pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"` before calling OCR.
-- Pages accessible after logout: ensure protected templates include JS auth-check or server-side `login_required` checks.
+### Frontend
 
----
+```bash
+npm test
+```
 
-## Contributing
+### Backend
 
-1. Fork the repo
-2. Create a feature branch
-3. Add tests for new behavior
-4. Run test suite and ensure green
-5. Submit PR with description and code review
-
----
-
-## Quick commands
+From `backend/` with the venv activated:
 
 ```powershell
-# activate venv
-.\.venv\Scripts\Activate.ps1
-# run tests
-python -m pytest -q
-# start dev server
-python run.py
+pytest
+# or with coverage
+pytest --cov=app
+```
+
+CI (GitHub Actions) should run tests and publish coverage to Codecov.
+
+---
+
+## 7. PDF templates & generation
+
+The backend typically contains modules like:
+
+- `pdf_logic.py`  prepares CV data and integrates with the LLM for suggestions
+- `pdf_templates.py`  template definitions (e.g. `default`, `modern_blue`, `linkedin`)
+- `pdf_generation.py`  endpoint that receives CV JSON and returns a generated PDF
+
+To switch templates, update the template parameter in the frontend or the backend endpoint call (e.g. pass `template: "modern_blue"`).
+
+---
+
+## 8. CI & Codecov
+
+Add a GitHub Actions workflow to run tests on push and PRs. Example responsibilities:
+- Install Python and Node
+- Run backend and frontend tests
+- Upload coverage to Codecov
+
+Badge (example):
+
+```
+[![codecov](https://codecov.io/gh/your-org/your-repo/branch/main/graph/badge.svg)](https://codecov.io/gh/your-org/your-repo)
 ```
 
 ---
 
-If you'd like, I can:
-- add a `.env.example` file to the repo,
-- add more API examples (full request + expected response),
-- add a `Make.ps1` or `scripts/` folder with helpers for dev tasks,
-- add CI configuration snippets (GitHub Actions) to run tests and report code coverage.
+## 9. Quick troubleshooting
 
-Please tell me which of these you'd like next.
+- LLM analysis failing (502): ensure Ollama is running and the model is pulled.
+- Tests failing due to DB: reset `app.db` or run migration script and ensure `.env` points to the correct DB.
+- OAuth issues: verify redirect URIs in provider console (Google) and matching client secrets in `.env`.
+
+---
+
+## 10. Quick commands
+
+```powershell
+# Backend venv creation
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python migrate_db.py   # optional
+uvicorn app.main:app --reload --port 8000
+
+# Frontend
+cd ..
+npm install
+npm start
+
+# Tests
+# Backend
+python -m pytest -q
+# Frontend
+npm test
+```
+
+---
+
+If you want, I will:
+- add a `.env.example` file to the repo,
+- add a `backend/migrate_db.py` template (if migrations are missing),
+- create a GitHub Actions workflow that runs tests and posts coverage to Codecov,
+- add sample curl/Postman examples for the main API endpoints.
+
+Please tell me which follow-up tasks you'd like me to do next.
