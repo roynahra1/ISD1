@@ -8,54 +8,46 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-22.04  # Use a specific LTS version instead of latest
+    runs-on: ubuntu-24.04
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.10'  # Use 3.10 which is widely available
+        python-version: '3.11'
     
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # Check if requirements.txt exists before installing
+        # ALWAYS install pytest and coverage tools
+        pip install pytest pytest-cov python-dotenv
+        
+        # Optionally install from requirements.txt if it exists
         if [ -f requirements.txt ]; then
           pip install -r requirements.txt
-        else
-          echo "requirements.txt not found, installing basic dependencies"
-          pip install flask flask-cors pytest pytest-cov python-dotenv
         fi
     
+    # Remove or modify the "Check if tests exist" step
     - name: Check if tests exist
       run: |
-        if [ -f "test_app.py" ] || [ -d "tests" ] || [ -f "tests.py" ]; then
-          echo "Test files found"
-        else
+        if [ ! -f "test_app.py" ] && [ ! -d "tests" ] && [ ! -f "tests.py" ]; then
           echo "No test files found, creating a basic test file"
           echo "import unittest\n\nclass TestBasic(unittest.TestCase):\n    def test_basic(self):\n        self.assertTrue(True)\n\nif __name__ == '__main__':\n    unittest.main()" > test_basic.py
         fi
     
     - name: Run tests with coverage
       run: |
-        # Run pytest if test files exist
-        if [ -f "test_app.py" ] || [ -d "tests" ] || [ -f "tests.py" ] || [ -f "test_basic.py" ]; then
-          pytest --cov=./ --cov-report=xml --cov-report=html -v || echo "Tests failed but continuing..."
-        else
-          echo "No test files to run"
-          # Create a dummy coverage file for Codecov
-          echo '<?xml version="1.0" ?><coverage version="7.4.1" timestamp="$(date +%s)"><sources><source>/home/runner/work/repo</source></sources><packages><package name="." line-rate="1" branch-rate="1" complexity="0"><classes><class name="__init__.py" filename="__init__.py" complexity="0" line-rate="1" branch-rate="1"/></classes></package></packages></coverage>' > coverage.xml
-        fi
+        pytest --cov=./ --cov-report=xml --cov-report=html -v
     
     - name: Upload coverage reports to Codecov
-      if: success() || failure()  # Run even if tests fail
+      if: always()
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
-        fail_ci_if_error: false  # Don't fail CI if Codecov upload fails
+        fail_ci_if_error: false
