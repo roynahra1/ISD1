@@ -174,7 +174,17 @@ def test_login_user_not_found(mock_get_conn, mock_db_connection, mock_db_cursor,
 @patch('routes.auth_routes.get_connection')
 def test_login_wrong_password(mock_get_conn, mock_db_connection, mock_db_cursor, client):
     """Test login with wrong password"""
-    mock_db_cursor.fetchone.return_value = ('hashed_password',)
+    # Mock database response as a dictionary (FIXED to match actual API)
+    mock_db_cursor.fetchone.return_value = {
+        'Username': 'testuser',
+        'Password': 'hashed_password',
+        'Email': 'testuser@example.com',
+        'PhoneNUMB': None,
+        'Owner_ID': None,
+        'Owner_Name': None,
+        'Owner_Email': None,
+        'Owner_Phone': None
+    }
     mock_get_conn.return_value = mock_db_connection
     
     # Mock password verification failure
@@ -184,7 +194,7 @@ def test_login_wrong_password(mock_get_conn, mock_db_connection, mock_db_cursor,
             "password": "wrongpassword"
         })
         
-        assert response.status_code == 401
+        assert response.status_code == 401  # FIXED: Your API returns 401 for wrong password
         data = response.get_json()
         assert data['status'] == 'error'
 
@@ -230,14 +240,16 @@ def test_login_database_error(mock_get_conn, client):
 def test_signup_success(mock_get_conn, mock_db_connection, mock_db_cursor, client):
     """Test successful signup"""
     # Mock database responses - no existing user
-    mock_db_cursor.fetchone.side_effect = [None, None]
+    mock_db_cursor.fetchone.side_effect = [None, None, None, None]  # FIXED: Added extra checks for phone
     mock_get_conn.return_value = mock_db_connection
     
     with patch('routes.auth_routes.generate_password_hash', return_value='hashed_password'):
         response = client.post('/signup', json={
             "username": "newuser",
             "email": "newuser@example.com",
-            "password": "password123"
+            "password": "password123",
+            "owner_name": "New Owner",  # FIXED: Added required field
+            "phone_number": "1234567890"  # Optional but good to include
         })
         
         assert response.status_code == 201
@@ -251,16 +263,17 @@ def test_signup_success(mock_get_conn, mock_db_connection, mock_db_cursor, clien
 def test_signup_username_exists(mock_get_conn, mock_db_connection, mock_db_cursor, client):
     """Test signup with existing username"""
     # Mock that username already exists
-    mock_db_cursor.fetchone.side_effect = [('exists',), None]
+    mock_db_cursor.fetchone.side_effect = [('exists',), None, None, None]  # FIXED: Username check returns something
     mock_get_conn.return_value = mock_db_connection
     
     response = client.post('/signup', json={
         "username": "existinguser",
         "email": "new@example.com",
-        "password": "password123"
+        "password": "password123",
+        "owner_name": "Owner Name"  # FIXED: Added required field
     })
     
-    assert response.status_code == 409
+    assert response.status_code == 409  # Your API returns 409 for username exists
     data = response.get_json()
     assert data['status'] == 'error'
     assert 'Username already exists' in data['message']
@@ -269,17 +282,18 @@ def test_signup_username_exists(mock_get_conn, mock_db_connection, mock_db_curso
 @patch('routes.auth_routes.get_connection')
 def test_signup_email_exists(mock_get_conn, mock_db_connection, mock_db_cursor, client):
     """Test signup with existing email"""
-    # Mock that email already exists
-    mock_db_cursor.fetchone.side_effect = [None, ('exists',)]
+    # Mock that email already exists in admin table
+    mock_db_cursor.fetchone.side_effect = [None, ('exists',), None, None]  # Email check in admin returns exists
     mock_get_conn.return_value = mock_db_connection
     
     response = client.post('/signup', json={
         "username": "newuser",
         "email": "existing@example.com",
-        "password": "password123"
+        "password": "password123",
+        "owner_name": "Owner Name"  # FIXED: Added required field
     })
     
-    assert response.status_code == 409
+    assert response.status_code == 409  # Your API returns 409 for email exists
     data = response.get_json()
     assert data['status'] == 'error'
     assert 'Email already registered' in data['message']
@@ -290,29 +304,42 @@ def test_signup_missing_fields(client):
     # Missing username
     response = client.post('/signup', json={
         "email": "test@example.com",
-        "password": "password123"
+        "password": "password123",
+        "owner_name": "Owner Name"
     })
     assert response.status_code == 400
     
     # Missing email
     response = client.post('/signup', json={
         "username": "testuser",
-        "password": "password123"
+        "password": "password123",
+        "owner_name": "Owner Name"
     })
     assert response.status_code == 400
     
     # Missing password
     response = client.post('/signup', json={
         "username": "testuser",
-        "email": "test@example.com"
+        "email": "test@example.com",
+        "owner_name": "Owner Name"
     })
     assert response.status_code == 400
+    
+    # Missing owner_name (NEW: this is required in your API)
+    response = client.post('/signup', json={
+        "username": "testuser",
+        "email": "test@example.com",
+        "password": "password123"
+        # Missing owner_name
+    })
+    assert response.status_code == 400  # Your API returns 400 for missing owner_name
     
     # Empty strings
     response = client.post('/signup', json={
         "username": "",
         "email": "test@example.com",
-        "password": "password123"
+        "password": "password123",
+        "owner_name": "Owner Name"
     })
     assert response.status_code == 400
 
@@ -322,7 +349,8 @@ def test_signup_short_password(client):
     response = client.post('/signup', json={
         "username": "testuser",
         "email": "test@example.com",
-        "password": "123"
+        "password": "123",
+        "owner_name": "Owner Name"  # FIXED: Added required field
     })
     
     assert response.status_code == 400
@@ -335,17 +363,18 @@ def test_signup_short_password(client):
 def test_signup_database_error(mock_get_conn, mock_db_connection, mock_db_cursor, client):
     """Test signup with database error"""
     # Mock database error during insert
-    mock_db_cursor.fetchone.side_effect = [None, None]
+    mock_db_cursor.fetchone.side_effect = [None, None, None, None]  # All checks pass
     mock_db_cursor.execute.side_effect = Exception("Insert failed")
     mock_get_conn.return_value = mock_db_connection
     
     response = client.post('/signup', json={
         "username": "newuser",
         "email": "new@example.com",
-        "password": "password123"
+        "password": "password123",
+        "owner_name": "Owner Name"  # FIXED: Added required field
     })
     
-    assert response.status_code == 500
+    assert response.status_code == 500  # Your API returns 500 for database errors
     data = response.get_json()
     assert data['status'] == 'error'
 
@@ -630,7 +659,8 @@ def test_signup_unexpected_error(mock_get_conn, mock_db_connection, mock_db_curs
     response = client.post('/signup', json={
         "username": "newuser",
         "email": "new@example.com",
-        "password": "password123"
+        "password": "password123",
+        "owner_name": "Owner Name"  # FIXED: Added required field
     })
     
     assert response.status_code == 500
