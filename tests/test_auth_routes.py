@@ -238,24 +238,67 @@ def test_login_database_error(mock_get_conn, client):
 
 @patch('routes.auth_routes.get_connection')
 def test_signup_success(mock_get_conn, mock_db_connection, mock_db_cursor, client):
-    """Test successful signup"""
+    """Test successful signup - FIXED VERSION"""
     # Mock database responses - no existing user
-    mock_db_cursor.fetchone.side_effect = [None, None, None, None]  # FIXED: Added extra checks for phone
+    # We need to handle the sequence of fetchone calls properly
+    fetchone_results = []
+    
+    def fetchone_side_effect():
+        # Each time fetchone is called, return None (record doesn't exist)
+        fetchone_results.append("fetchone called")
+        return None
+    
+    mock_db_cursor.fetchone.side_effect = fetchone_side_effect
+    
+    # Track execute calls to ensure we're mocking them correctly
+    execute_calls = []
+    
+    def execute_side_effect(query, params=None):
+        execute_calls.append((query, params))
+        # Don't raise any exceptions
+        return None
+    
+    mock_db_cursor.execute.side_effect = execute_side_effect
+    
+    # Mock lastrowid to simulate successful inserts
+    # First insert (owner) returns 1, second insert (admin) returns 2
+    lastrowid_counter = 0
+    
+    @property
+    def lastrowid_property(self):
+        nonlocal lastrowid_counter
+        lastrowid_counter += 1
+        # Return 1 for owner_id, then 2 for user_id
+        return lastrowid_counter
+    
+    # Apply the property to the mock cursor
+    type(mock_db_cursor).lastrowid = lastrowid_property
+    
     mock_get_conn.return_value = mock_db_connection
     
+    # Mock the generate_password_hash function
     with patch('routes.auth_routes.generate_password_hash', return_value='hashed_password'):
         response = client.post('/signup', json={
             "username": "newuser",
             "email": "newuser@example.com",
             "password": "password123",
-            "owner_name": "New Owner",  # FIXED: Added required field
+            "owner_name": "New Owner",  # Required field
             "phone_number": "1234567890"  # Optional but good to include
         })
         
-        assert response.status_code == 201
+        # Debug: print what happened if test fails
+        if response.status_code != 201:
+            print(f"\n=== DEBUG INFO ===")
+            print(f"Status: {response.status_code}")
+            print(f"Response: {response.get_json()}")
+            print(f"fetchone called {len(fetchone_results)} times")
+            print(f"execute called {len(execute_calls)} times")
+            for i, call in enumerate(execute_calls):
+                print(f"Execute {i+1}: {call[0][:100]}...")
+        
+        assert response.status_code == 201, f"Expected 201, got {response.status_code}: {response.get_json()}"
         data = response.get_json()
         assert data['status'] == 'success'
-        # Signup creates both account and owner profile
         assert 'owner_id' in data
 
 
