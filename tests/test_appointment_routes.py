@@ -19,8 +19,8 @@ class TestAppointmentRoutes:
             "service_ids": [1, 2],
             "notes": "Test appointment"
         })
-        # Should return validation error, not 500
-        assert response.status_code != 500
+        # Unauthenticated booking should be rejected (401)
+        assert response.status_code == 401
 
     @patch('routes.appointment_routes.get_connection')
     def test_search_appointments(self, mock_get_connection, client):

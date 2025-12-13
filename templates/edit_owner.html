@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Owner Information - Garage Management</title>
+    <title>Manage Owner Information - Garage Management</title>
     <style>
         * {
             margin: 0;
@@ -124,6 +124,39 @@
             outline: none;
         }
         
+        .input-valid {
+            border-color: #28a745 !important;
+        }
+        
+        .input-invalid {
+            border-color: #e74c3c !important;
+        }
+        
+        .input-warning {
+            border-color: #ffc107 !important;
+        }
+        
+        .validation-message {
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .validation-valid {
+            color: #28a745;
+            display: block;
+        }
+        
+        .validation-invalid {
+            color: #e74c3c;
+            display: block;
+        }
+        
+        .validation-warning {
+            color: #ffc107;
+            display: block;
+        }
+        
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -148,6 +181,15 @@
         .btn-secondary:hover {
             background: #5a6268;
             box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+        }
+        
+        .btn-success {
+            background: #28a745;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
         }
         
         .btn-danger {
@@ -293,6 +335,95 @@
             justify-content: flex-end;
             margin-top: 30px;
         }
+        
+        .no-results {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .add-new-section {
+            text-align: center;
+            margin-top: 20px;
+            padding: 20px;
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        
+        .section-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .toggle-cars-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .search-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .add-owner-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .add-owner-text {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }
+        
+        .results-count {
+            color: #666;
+            font-size: 13px;
+        }
+        
+        .field-hint {
+            color: #666;
+            font-size: 12px;
+            margin-top: 5px;
+            display: block;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+        
+        .plate-format-example {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid #dee2e6;
+        }
     </style>
 </head>
 <body>
@@ -300,8 +431,8 @@
         <div class="header">
             <a href="/mechanic/dashboard" class="back-btn">← Back to Dashboard</a>
             <div class="user-info">Logged in as: <span id="username"></span></div>
-            <h1>Edit Owner Information</h1>
-            <p>Search for an owner to update their information</p>
+            <h1>Manage Owner Information</h1>
+            <p>Search for existing owners or add new ones</p>
         </div>
         
         <div class="content">
@@ -314,28 +445,60 @@
                     <input type="text" id="searchInput" placeholder="Search by name, email, or phone number..." autocomplete="off">
                     <button class="btn" onclick="searchOwners()">🔍 Search</button>
                 </div>
+                
+                <!-- Results Header (initially hidden) -->
+                <div id="resultsHeader" class="results-header" style="display: none;">
+                    <h3 style="color: #2c3e50; margin: 0;">Search Results</h3>
+                    <div id="resultsCount" class="results-count">Found 0 owners</div>
+                </div>
+                
                 <div id="searchResults" class="results-container"></div>
+                
+                <!-- Add New Owner Option (only shows when no results found) -->
+                <div id="addNewSection" class="add-new-section" style="display: none;">
+                    <h3 style="color: #666; margin-bottom: 15px;">Owner not found?</h3>
+                    <p style="color: #999; margin-bottom: 20px;">You can add a new owner to the system</p>
+                    <button class="btn btn-success" onclick="showAddNewOwnerForm()">➕ Add New Owner</button>
+                </div>
+                
+                <!-- Always Show Add Option -->
+                <div class="search-actions">
+                    <div class="add-owner-option">
+                        <span class="add-owner-text">Don't see the owner you're looking for?</span>
+                        <button class="btn btn-success" style="padding: 8px 15px;" onclick="showAddNewOwnerForm()">➕ Add New Owner</button>
+                    </div>
+                    <button class="btn" onclick="searchOwners()" style="padding: 8px 15px;">Search Again</button>
+                </div>
             </div>
             
-            <!-- Edit Form Section -->
+            <!-- Edit Existing Owner Section -->
             <div id="editSection" class="form-section">
-                <h2 style="margin-bottom: 20px; color: #2c3e50;">Edit Owner Information</h2>
+                <div class="section-title">
+                    <h2 style="color: #2c3e50;">Edit Owner Information</h2>
+                    <button class="toggle-cars-btn" onclick="toggleCarsSection()">Toggle Cars</button>
+                </div>
                 <form id="ownerForm">
                     <input type="hidden" id="ownerId">
                     
                     <div class="form-group">
                         <label for="ownerName">Owner Name *</label>
-                        <input type="text" id="ownerName" required>
+                        <input type="text" id="ownerName" required oninput="validateOwnerName()">
+                        <span id="ownerNameValidation" class="validation-message"></span>
+                        <span class="field-hint">Maximum 100 characters</span>
                     </div>
                     
                     <div class="form-group">
                         <label for="ownerEmail">Email Address</label>
-                        <input type="email" id="ownerEmail" placeholder="owner@example.com">
+                        <input type="email" id="ownerEmail" placeholder="owner@example.com" oninput="validateEmail()">
+                        <span id="ownerEmailValidation" class="validation-message"></span>
+                        <span class="field-hint">Optional</span>
                     </div>
                     
                     <div class="form-group">
                         <label for="ownerPhone">Phone Number *</label>
-                        <input type="tel" id="ownerPhone" required>
+                        <input type="tel" id="ownerPhone" required oninput="validatePhone()">
+                        <span id="ownerPhoneValidation" class="validation-message"></span>
+                        <span class="field-hint">Minimum 8 digits, maximum 20 characters</span>
                     </div>
                     
                     <!-- Owner's Cars Section -->
@@ -346,7 +509,84 @@
                     
                     <div class="form-actions">
                         <button type="button" class="btn btn-secondary" onclick="goBackToSearch()">← Back to Search</button>
+                        <button type="button" class="btn btn-danger" onclick="confirmDeleteOwner()">Delete Owner</button>
                         <button type="submit" class="btn">Update Owner</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Add New Owner Section -->
+            <div id="addOwnerSection" class="form-section">
+                <h2 style="margin-bottom: 20px; color: #2c3e50;">Add New Owner</h2>
+                <form id="newOwnerForm">
+                    <div class="form-group">
+                        <label for="newOwnerName">Owner Name *</label>
+                        <input type="text" id="newOwnerName" required oninput="validateNewOwnerName()">
+                        <span id="newOwnerNameValidation" class="validation-message"></span>
+                        <span class="field-hint">Maximum 100 characters</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newOwnerEmail">Email Address</label>
+                        <input type="email" id="newOwnerEmail" placeholder="owner@example.com" oninput="validateNewEmail()">
+                        <span id="newOwnerEmailValidation" class="validation-message"></span>
+                        <span class="field-hint">Optional</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newOwnerPhone">Phone Number *</label>
+                        <input type="tel" id="newOwnerPhone" required oninput="validateNewPhone()">
+                        <span id="newOwnerPhoneValidation" class="validation-message"></span>
+                        <span class="field-hint">Minimum 8 digits, maximum 20 characters</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="addCarWithOwner">Add a car for this owner?</label>
+                        <select id="addCarWithOwner" onchange="toggleCarFields()">
+                            <option value="no">No, just add owner</option>
+                            <option value="yes">Yes, add a car</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Car Fields (Initially Hidden) -->
+                    <div id="carFieldsSection" style="display: none; background: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 20px;">
+                        <h3 style="margin-bottom: 15px; color: #2c3e50;">Car Information</h3>
+                        
+                        <div class="form-group">
+                            <label for="carPlate">Car Plate * <span class="plate-format-example">A123456</span></label>
+                            <input type="text" id="carPlate" placeholder="A123456" 
+                                   oninput="formatCarPlate(this)" 
+                                   onkeypress="return validateCarPlateInput(event)"
+                                   maxlength="7">
+                            <span id="carPlateValidation" class="validation-message"></span>
+                            <span class="field-hint">Format: 1 letter (A-Z) followed by 1-6 digits (0-9)</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="carModel">Model *</label>
+                            <input type="text" id="carModel" placeholder="Toyota Camry" oninput="validateCarModel()">
+                            <span id="carModelValidation" class="validation-message"></span>
+                            <span class="field-hint">Maximum 50 characters</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="carYear">Year</label>
+                            <input type="number" id="carYear" min="1900" max="2030" placeholder="2023" oninput="validateCarYear()">
+                            <span id="carYearValidation" class="validation-message"></span>
+                            <span class="field-hint">Between 1900 and current year + 1</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="carVIN">VIN (Vehicle Identification Number)</label>
+                            <input type="text" id="carVIN" placeholder="1HGCM82633A123456" oninput="validateCarVIN()">
+                            <span id="carVINValidation" class="validation-message"></span>
+                            <span class="field-hint">Exactly 17 characters (optional)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="goBackToSearch()">← Cancel</button>
+                        <button type="submit" class="btn btn-success">➕ Add Owner</button>
                     </div>
                 </form>
             </div>
@@ -362,7 +602,421 @@
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('username').textContent = localStorage.getItem('mechanic_username') || 'Mechanic';
             document.getElementById('searchInput').focus();
+            
+            // Listen for Enter key in search input
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchOwners();
+                }
+            });
         });
+        
+        // ============================================
+        // VALIDATION FUNCTIONS
+        // ============================================
+        
+        function validateOwnerName() {
+            const input = document.getElementById('ownerName');
+            const validation = document.getElementById('ownerNameValidation');
+            const value = input.value.trim();
+            
+            if (!value) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Owner name is required';
+                return false;
+            }
+            
+            if (value.length > 100) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Owner name is too long (max 100 characters)';
+                return false;
+            }
+            
+            // Check for malicious input
+            if (/[<>{}[\];]/.test(value)) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Owner name contains invalid characters';
+                return false;
+            }
+            
+            input.className = 'input-valid';
+            validation.className = 'validation-valid';
+            validation.textContent = '✓ Valid name';
+            return true;
+        }
+        
+        function validateEmail() {
+            const input = document.getElementById('ownerEmail');
+            const validation = document.getElementById('ownerEmailValidation');
+            const value = input.value.trim();
+            
+            if (!value) {
+                input.className = '';
+                validation.className = '';
+                validation.textContent = '';
+                return true; // Email is optional
+            }
+            
+            if (value.length > 100) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Email is too long';
+                return false;
+            }
+            
+            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (!emailPattern.test(value)) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Invalid email format';
+                return false;
+            }
+            
+            input.className = 'input-valid';
+            validation.className = 'validation-valid';
+            validation.textContent = '✓ Valid email';
+            return true;
+        }
+        
+        function validatePhone() {
+            const input = document.getElementById('ownerPhone');
+            const validation = document.getElementById('ownerPhoneValidation');
+            let value = input.value.trim();
+            
+            if (!value) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Phone number is required';
+                return false;
+            }
+            
+            // Clean phone number (remove spaces, dashes, parentheses)
+            const cleanValue = value.replace(/[+\s\-()]/g, '');
+            
+            if (cleanValue.length < 8) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Phone number is too short (minimum 8 digits)';
+                return false;
+            }
+            
+            if (cleanValue.length > 20) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Phone number is too long (max 20 characters)';
+                return false;
+            }
+            
+            // Check if contains only digits and optional '+' at start
+            if (!/^\+?\d+$/.test(cleanValue)) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Phone number should contain only digits and optional +';
+                return false;
+            }
+            
+            input.className = 'input-valid';
+            validation.className = 'validation-valid';
+            validation.textContent = '✓ Valid phone number';
+            return true;
+        }
+        
+        function validateNewOwnerName() {
+            const input = document.getElementById('newOwnerName');
+            const validation = document.getElementById('newOwnerNameValidation');
+            const value = input.value.trim();
+            
+            if (!value) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Owner name is required';
+                return false;
+            }
+            
+            if (value.length > 100) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Owner name is too long (max 100 characters)';
+                return false;
+            }
+            
+            // Check for malicious input
+            if (/[<>{}[\];]/.test(value)) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Owner name contains invalid characters';
+                return false;
+            }
+            
+            input.className = 'input-valid';
+            validation.className = 'validation-valid';
+            validation.textContent = '✓ Valid name';
+            return true;
+        }
+        
+        function validateNewEmail() {
+            const input = document.getElementById('newOwnerEmail');
+            const validation = document.getElementById('newOwnerEmailValidation');
+            const value = input.value.trim();
+            
+            if (!value) {
+                input.className = '';
+                validation.className = '';
+                validation.textContent = '';
+                return true; // Email is optional
+            }
+            
+            if (value.length > 100) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Email is too long';
+                return false;
+            }
+            
+            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (!emailPattern.test(value)) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Invalid email format';
+                return false;
+            }
+            
+            input.className = 'input-valid';
+            validation.className = 'validation-valid';
+            validation.textContent = '✓ Valid email';
+            return true;
+        }
+        
+        function validateNewPhone() {
+            const input = document.getElementById('newOwnerPhone');
+            const validation = document.getElementById('newOwnerPhoneValidation');
+            let value = input.value.trim();
+            
+            if (!value) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Phone number is required';
+                return false;
+            }
+            
+            // Clean phone number
+            const cleanValue = value.replace(/[+\s\-()]/g, '');
+            
+            if (cleanValue.length < 8) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Phone number is too short (minimum 8 digits)';
+                return false;
+            }
+            
+            if (cleanValue.length > 20) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Phone number is too long (max 20 characters)';
+                return false;
+            }
+            
+            if (!/^\+?\d+$/.test(cleanValue)) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Phone number should contain only digits and optional +';
+                return false;
+            }
+            
+            input.className = 'input-valid';
+            validation.className = 'validation-valid';
+            validation.textContent = '✓ Valid phone number';
+            return true;
+        }
+        
+        // ============================================
+        // CAR PLATE SPECIFIC VALIDATION
+        // ============================================
+        
+        function formatCarPlate(input) {
+            // Get current value and uppercase it
+            let value = input.value.toUpperCase();
+            
+            // Remove any non-alphanumeric characters
+            value = value.replace(/[^A-Z0-9]/g, '');
+            
+            // Ensure first character is a letter
+            if (value.length > 0 && !/^[A-Z]/.test(value)) {
+                // If first character is not a letter, remove it
+                value = value.replace(/^[^A-Z]+/, '');
+            }
+            
+            // If we have a letter, extract it and the following digits
+            if (value.length > 0 && /^[A-Z]/.test(value)) {
+                const letter = value.charAt(0);
+                const digits = value.substring(1).replace(/[^0-9]/g, '').substring(0, 6); // Max 6 digits
+                value = letter + digits;
+            }
+            
+            // Update the input value
+            input.value = value;
+            
+            // Validate the formatted value
+            validateCarPlate();
+        }
+        
+        function validateCarPlateInput(event) {
+            const key = event.key;
+            const input = event.target;
+            const currentValue = input.value.toUpperCase();
+            
+            // Allow control keys (backspace, delete, tab, etc.)
+            if (event.ctrlKey || event.altKey || event.metaKey) {
+                return true;
+            }
+            
+            // If we're at position 0 (first character), only allow letters
+            if (input.selectionStart === 0) {
+                return /^[A-Z]$/i.test(key);
+            }
+            
+            // After first character, only allow digits
+            return /^[0-9]$/.test(key);
+        }
+        
+        function validateCarPlate() {
+            const input = document.getElementById('carPlate');
+            const validation = document.getElementById('carPlateValidation');
+            const value = input.value.trim().toUpperCase();
+            
+            if (!value) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Car plate is required';
+                return false;
+            }
+            
+            // Check format: 1 letter followed by 1-6 digits
+            const platePattern = /^[A-Z][0-9]{1,6}$/;
+            
+            if (!platePattern.test(value)) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                
+                if (!/^[A-Z]/.test(value)) {
+                    validation.textContent = 'Must start with a letter (A-Z)';
+                } else if (value.length === 1) {
+                    validation.textContent = 'Must include 1-6 digits after the letter';
+                } else if (!/^[A-Z][0-9]+$/.test(value)) {
+                    validation.textContent = 'Only digits allowed after the letter';
+                } else if (value.length > 7) {
+                    validation.textContent = 'Maximum 1 letter + 6 digits (7 characters total)';
+                } else {
+                    validation.textContent = 'Invalid format. Example: A123456';
+                }
+                return false;
+            }
+            
+            input.className = 'input-valid';
+            validation.className = 'validation-valid';
+            validation.textContent = '✓ Valid car plate format';
+            return true;
+        }
+        
+        function validateCarModel() {
+            const input = document.getElementById('carModel');
+            const validation = document.getElementById('carModelValidation');
+            const value = input.value.trim();
+            
+            if (!value) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Car model is required';
+                return false;
+            }
+            
+            if (value.length > 50) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Car model is too long (max 50 characters)';
+                return false;
+            }
+            
+            input.className = 'input-valid';
+            validation.className = 'validation-valid';
+            validation.textContent = '✓ Valid model';
+            return true;
+        }
+        
+        function validateCarYear() {
+            const input = document.getElementById('carYear');
+            const validation = document.getElementById('carYearValidation');
+            const value = input.value.trim();
+            
+            if (!value) {
+                input.className = '';
+                validation.className = '';
+                validation.textContent = '';
+                return true; // Year is optional
+            }
+            
+            const yearNum = parseInt(value);
+            const currentYear = new Date().getFullYear();
+            
+            if (isNaN(yearNum)) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'Year must be a number';
+                return false;
+            }
+            
+            if (yearNum < 1900 || yearNum > currentYear + 1) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = `Year must be between 1900 and ${currentYear + 1}`;
+                return false;
+            }
+            
+            input.className = 'input-valid';
+            validation.className = 'validation-valid';
+            validation.textContent = '✓ Valid year';
+            return true;
+        }
+        
+        function validateCarVIN() {
+            const input = document.getElementById('carVIN');
+            const validation = document.getElementById('carVINValidation');
+            const value = input.value.trim().toUpperCase();
+            
+            if (!value) {
+                input.className = '';
+                validation.className = '';
+                validation.textContent = '';
+                return true; // VIN is optional
+            }
+            
+            if (value.length !== 17) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'VIN must be exactly 17 characters';
+                return false;
+            }
+            
+            // VIN can contain letters and digits, no special characters
+            if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(value)) {
+                input.className = 'input-invalid';
+                validation.className = 'validation-invalid';
+                validation.textContent = 'VIN contains invalid characters';
+                return false;
+            }
+            
+            input.className = 'input-valid';
+            validation.className = 'validation-valid';
+            validation.textContent = '✓ Valid VIN format';
+            return true;
+        }
+        
+        // ============================================
+        // OTHER FUNCTIONS
+        // ============================================
         
         function showAlert(message, type = 'success') {
             const alert = document.getElementById('alert');
@@ -399,24 +1053,49 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    displaySearchResults(data.owners);
+                    displaySearchResults(data.owners, searchTerm);
                 } else {
                     showAlert(data.message, 'error');
+                    displaySearchResults([], searchTerm);
                 }
             } catch (error) {
                 showAlert('Error searching owners: ' + error.message, 'error');
+                displaySearchResults([], searchTerm);
             } finally {
                 hideLoading();
             }
         }
         
-        function displaySearchResults(owners) {
+        function displaySearchResults(owners, searchTerm = '') {
             const resultsContainer = document.getElementById('searchResults');
+            const addNewSection = document.getElementById('addNewSection');
+            const resultsHeader = document.getElementById('resultsHeader');
+            const resultsCount = document.getElementById('resultsCount');
+            
+            resultsHeader.style.display = 'block';
+            resultsCount.textContent = `Found ${owners.length} owner(s)`;
             
             if (owners.length === 0) {
-                resultsContainer.innerHTML = '<div class="result-item" style="text-align: center; color: #666;">No owners found</div>';
+                if (searchTerm) {
+                    resultsContainer.innerHTML = `
+                        <div class="no-results">
+                            <p>No owners found matching "<strong>${searchTerm}</strong>"</p>
+                            <p style="font-size: 12px; color: #999;">Try a different search term or add a new owner.</p>
+                        </div>
+                    `;
+                    addNewSection.style.display = 'block';
+                } else {
+                    resultsContainer.innerHTML = `
+                        <div class="no-results">
+                            <p>Enter a search term above to find owners</p>
+                        </div>
+                    `;
+                    addNewSection.style.display = 'none';
+                }
                 return;
             }
+            
+            addNewSection.style.display = 'none';
             
             let html = '';
             owners.forEach(owner => {
@@ -443,19 +1122,20 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Populate form
                     const owner = data.owner;
                     document.getElementById('ownerId').value = owner.Owner_ID;
                     document.getElementById('ownerName').value = owner.Owner_Name;
                     document.getElementById('ownerEmail').value = owner.Owner_Email || '';
                     document.getElementById('ownerPhone').value = owner.PhoneNUMB || '';
                     
-                    // Load owner's cars
+                    // Trigger validation
+                    validateOwnerName();
+                    validateEmail();
+                    validatePhone();
+                    
                     await loadOwnerCars(ownerId);
                     
-                    // Switch to edit section
-                    document.getElementById('searchSection').classList.remove('active-section');
-                    document.getElementById('editSection').classList.add('active-section');
+                    switchToSection('editSection');
                     
                     showAlert(`Loaded owner: ${owner.Owner_Name}`, 'success');
                 } else {
@@ -481,8 +1161,8 @@
                         html += `
                             <div class="car-card">
                                 <div class="car-plate">${car.Car_plate}</div>
-                                <div class="car-model">${car.Model} (${car.Year})</div>
-                                <div class="car-vin">VIN: ${car.VIN}</div>
+                                <div class="car-model">${car.Model} (${car.Year || 'N/A'})</div>
+                                <div class="car-vin">VIN: ${car.VIN || 'Not provided'}</div>
                                 ${car.Next_Oil_Change ? `<div style="color: #e67e22; font-size: 12px; margin-top: 5px;">Next oil: ${car.Next_Oil_Change}</div>` : ''}
                             </div>
                         `;
@@ -494,36 +1174,85 @@
                 }
             } catch (error) {
                 console.error('Error loading owner cars:', error);
+                document.getElementById('ownerCarsList').innerHTML = '<div style="color: #666; text-align: center;">Error loading cars</div>';
             }
         }
         
-        function goBackToSearch() {
-            document.getElementById('searchSection').classList.add('active-section');
-            document.getElementById('editSection').classList.remove('active-section');
-            document.getElementById('searchInput').value = '';
-            document.getElementById('searchResults').innerHTML = '';
-            document.getElementById('ownerForm').reset();
-            document.getElementById('ownerCarsList').innerHTML = '';
+        function showAddNewOwnerForm() {
+            switchToSection('addOwnerSection');
+            document.getElementById('newOwnerName').focus();
+            document.getElementById('addNewSection').style.display = 'none';
+            document.getElementById('resultsHeader').style.display = 'none';
         }
         
+        function switchToSection(sectionId) {
+            document.getElementById('searchSection').classList.remove('active-section');
+            document.getElementById('editSection').classList.remove('active-section');
+            document.getElementById('addOwnerSection').classList.remove('active-section');
+            
+            document.getElementById(sectionId).classList.add('active-section');
+        }
+        
+        function goBackToSearch() {
+            switchToSection('searchSection');
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('addNewSection').style.display = 'none';
+            document.getElementById('resultsHeader').style.display = 'none';
+            document.getElementById('ownerForm').reset();
+            document.getElementById('newOwnerForm').reset();
+            document.getElementById('ownerCarsList').innerHTML = '';
+            document.getElementById('carFieldsSection').style.display = 'none';
+            document.getElementById('addCarWithOwner').value = 'no';
+            
+            // Clear validation states
+            const validations = document.querySelectorAll('.validation-message');
+            validations.forEach(v => {
+                v.className = 'validation-message';
+                v.textContent = '';
+            });
+            
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.className = '';
+            });
+        }
+        
+        function toggleCarFields() {
+            const addCarSelect = document.getElementById('addCarWithOwner');
+            const carFieldsSection = document.getElementById('carFieldsSection');
+            
+            if (addCarSelect.value === 'yes') {
+                carFieldsSection.style.display = 'block';
+                // Focus on car plate when shown
+                setTimeout(() => document.getElementById('carPlate').focus(), 100);
+            } else {
+                carFieldsSection.style.display = 'none';
+            }
+        }
+        
+        function toggleCarsSection() {
+            const carsSection = document.getElementById('ownerCarsSection');
+            if (carsSection.style.display === 'none') {
+                carsSection.style.display = 'block';
+            } else {
+                carsSection.style.display = 'none';
+            }
+        }
+        
+        // Handle existing owner form submission
         document.getElementById('ownerForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            
+            if (!validateOwnerName() || !validatePhone()) {
+                showAlert('Please fix the validation errors before submitting', 'error');
+                return;
+            }
             
             const ownerId = document.getElementById('ownerId').value;
             const ownerName = document.getElementById('ownerName').value.trim();
             const ownerEmail = document.getElementById('ownerEmail').value.trim();
             const ownerPhone = document.getElementById('ownerPhone').value.trim();
-            
-            // Validate
-            if (!ownerName) {
-                showAlert('Owner name is required', 'error');
-                return;
-            }
-            
-            if (!ownerPhone) {
-                showAlert('Phone number is required', 'error');
-                return;
-            }
             
             showLoading('Updating owner information...');
             
@@ -544,7 +1273,6 @@
                 
                 if (data.success) {
                     showAlert(data.message, 'success');
-                    // Reload owner data
                     setTimeout(() => loadOwner(ownerId), 1000);
                 } else {
                     showAlert(data.message, 'error');
@@ -556,12 +1284,133 @@
             }
         });
         
-        // Allow pressing Enter to search
-        document.getElementById('searchInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                searchOwners();
+        // Handle new owner form submission
+        document.getElementById('newOwnerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Validate all fields
+            if (!validateNewOwnerName() || !validateNewPhone()) {
+                showAlert('Please fix the validation errors before submitting', 'error');
+                return;
+            }
+            
+            const addCar = document.getElementById('addCarWithOwner').value === 'yes';
+            if (addCar) {
+                if (!validateCarPlate() || !validateCarModel()) {
+                    showAlert('Please fix the car validation errors before submitting', 'error');
+                    return;
+                }
+                validateCarYear(); // Optional, but run to update UI
+                validateCarVIN();  // Optional, but run to update UI
+            }
+            
+            const ownerName = document.getElementById('newOwnerName').value.trim();
+            const ownerEmail = document.getElementById('newOwnerEmail').value.trim();
+            const ownerPhone = document.getElementById('newOwnerPhone').value.trim();
+            
+            // Prepare data
+            const ownerData = {
+                owner_name: ownerName,
+                owner_email: ownerEmail || null,
+                phone_number: ownerPhone
+            };
+            
+            // Add car data if requested
+            if (addCar) {
+                const carPlate = document.getElementById('carPlate').value.trim().toUpperCase();
+                const carModel = document.getElementById('carModel').value.trim();
+                const carYear = document.getElementById('carYear').value;
+                const carVIN = document.getElementById('carVIN').value.trim().toUpperCase();
+                
+                ownerData.car = {
+                    car_plate: carPlate,
+                    model: carModel,
+                    year: carYear || null,
+                    vin: carVIN || null
+                };
+            }
+            
+            showLoading('Adding new owner...');
+            
+            try {
+                const response = await fetch('/mechanic/api/owner', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(ownerData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Owner added successfully! Owner ID: ${data.owner_id}`, 'success');
+                    
+                    // Clear form
+                    document.getElementById('newOwnerForm').reset();
+                    document.getElementById('carFieldsSection').style.display = 'none';
+                    document.getElementById('addCarWithOwner').value = 'no';
+                    
+                    // Clear validation states
+                    const validations = document.querySelectorAll('.validation-message');
+                    validations.forEach(v => {
+                        v.className = 'validation-message';
+                        v.textContent = '';
+                    });
+                    
+                    const inputs = document.querySelectorAll('input');
+                    inputs.forEach(input => {
+                        input.className = '';
+                    });
+                    
+                    // Go back to search and auto-search the new owner
+                    setTimeout(() => {
+                        goBackToSearch();
+                        if (ownerName) {
+                            document.getElementById('searchInput').value = ownerName;
+                            setTimeout(() => searchOwners(), 500);
+                        }
+                    }, 2000);
+                    
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error adding owner: ' + error.message, 'error');
+            } finally {
+                hideLoading();
             }
         });
+        
+        async function confirmDeleteOwner() {
+            const ownerId = document.getElementById('ownerId').value;
+            const ownerName = document.getElementById('ownerName').value;
+            
+            if (!confirm(`Are you sure you want to delete owner "${ownerName}"?\n\n⚠️ This will remove the owner but keep their cars in the system as "ownerless".\n⚠️ Admin accounts for this owner must be removed first.`)) {
+                return;
+            }
+            
+            showLoading('Deleting owner...');
+            
+            try {
+                const response = await fetch(`/mechanic/api/owner/${ownerId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Owner "${ownerName}" deleted successfully. ${data.cars_affected} car(s) are now ownerless.`, 'success');
+                    setTimeout(() => goBackToSearch(), 1500);
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error deleting owner: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
     </script>
 </body>
 </html>

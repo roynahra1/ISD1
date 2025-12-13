@@ -2,9 +2,16 @@ from flask import Blueprint, render_template, redirect, session
 
 template_bp = Blueprint('templates', __name__)
 
+# Note: The blueprint is now registered under /templates prefix
+# So these routes will be:
+# /templates/ → redirects to /appointment.html
+# /templates/login.html → serves login.html
+# etc.
+
 @template_bp.route("/")
 def index():
-    return redirect("/appointment.html")
+    # This will now be accessible at /templates/ instead of /
+    return redirect("/index.html")
 
 @template_bp.route("/login.html")
 def login_page():

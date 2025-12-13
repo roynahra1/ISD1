@@ -7,7 +7,44 @@
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { background:#1f1f1f; color:#fff; font-family:Arial; padding:20px; text-align:center; }
-    .container { max-width:900px; margin:auto; background:#2b2b2b; padding:20px; border-radius:15px; border:1px solid #3498db; }
+    .container { max-width:900px; margin:auto; background:#2b2b2b; padding:20px; border-radius:15px; border:1px solid #3498db; position: relative; }
+    
+    /* Back Button Styles - UPDATED TO LEFT TOP */
+    .back-button {
+      position: absolute;
+      top: 20px;
+      left: 20px;  /* Changed from right: 20px to left: 20px */
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-block;
+      z-index: 10;
+    }
+    .back-button:hover {
+      background: #5a6268;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    .back-button:active {
+      transform: translateY(0);
+    }
+
+    /* Page Header - Adjusted for back button */
+    .page-header {
+      margin-top: 50px; /* Added space for back button */
+      margin-bottom: 20px;
+    }
+    .page-header h1 {
+      margin: 0;
+    }
+
     .camera-container { margin:20px 0; position:relative; }
     video { width:100%; background:black; border-radius:10px; }
     .focus-overlay { position:absolute; top:50%; left:50%; width:260px; height:100px; transform:translate(-50%,-50%); border:3px solid #00ff88; border-radius:10px; pointer-events:none; }
@@ -141,7 +178,13 @@
 </head>
 <body>
   <div class="container">
-    <h1>🚗 License Plate Recognition & VIN Search</h1>
+    <!-- Back Button - UPDATED TO LEFT TOP -->
+    <button class="back-button" onclick="goBackToDashboard()">← Back to Dashboard</button>
+    
+    <!-- Page Header with adjusted margin -->
+    <div class="page-header">
+      <h1>🚗 License Plate Recognition & VIN Search</h1>
+    </div>
     
     <div class="search-tabs">
       <button class="tab-btn active" onclick="showTab('camera')">📷 Camera Search</button>
@@ -153,7 +196,7 @@
     <div id="cameraTab" class="tab-content">
       <div style="margin-top:10px;">
         <label>API URL:</label>
-        <input id="apiUrl" type="text" value="/car/detect" style="width:60%; padding:6px; border-radius:8px; border:none;">
+        <input id="apiUrl" type="text" value="/car/detect" style="width:60%; padding:6px; border-radius:8px; border:none;" disabled>
       </div>
 
       <div class="camera-container">
@@ -223,6 +266,16 @@
       initializeCamera();
       showTab('camera');
     });
+
+    // Back Button Function
+    function goBackToDashboard() {
+      // Stop camera if running
+      if (stream) {
+        stopCamera();
+      }
+      // Navigate to mechanic dashboard
+      window.location.href = '/mechanic/dashboard';
+    }
 
     function showTab(tabName) {
       // Hide all tabs
@@ -807,40 +860,57 @@
     }
 
     function proceedToAfterService(plateNumber) {
-    console.log('🚀 Going to after-service form for:', plateNumber);
-    
-    // 1. Store in sessionStorage (client-side, immediate)
-    sessionStorage.setItem('detectedPlate', plateNumber);
-    
-    // 2. Store in localStorage as backup
-    localStorage.setItem('lastDetectedPlate', plateNumber);
-    
-    // 3. Navigate to the working route
-    window.location.href = '/after_service_form.html';
-}
+      console.log('🚀 Going to after-service form for:', plateNumber);
+      
+      // 1. Store in sessionStorage (client-side, immediate)
+      sessionStorage.setItem('detectedPlate', plateNumber);
+      
+      // 2. Store in localStorage as backup
+      localStorage.setItem('lastDetectedPlate', plateNumber);
+      
+      // 3. Navigate to the working route
+      window.location.href = '/after_service_form.html';
+    }
 
-    function proceedToAddCar(plateNumber) {
-      // Store plate in session via API
-      fetch('/mechanic/api/store-plate', {
+   function proceedToAddCar(plateNumber) {
+    console.log(`🚀 Redirecting to add car with plate: ${plateNumber}`);
+    
+    // Format the plate to ensure proper format
+    const formattedPlate = plateNumber.toUpperCase().replace(/[^A-Z0-9]/gi, '');
+    
+    // Store in client-side storage (highest priority for addCar.html)
+    try {
+        sessionStorage.setItem('detectedPlate', formattedPlate);
+        localStorage.setItem('detectedPlate', formattedPlate);
+        console.log(`Stored plate in sessionStorage: ${formattedPlate}`);
+    } catch (error) {
+        console.log('Client storage error:', error);
+    }
+    
+    // Also store via API (backup method)
+    fetch('/mechanic/api/store-plate', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+            'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ plate_number: plateNumber })
-      })
-      .then(response => response.json())
-      .then(data => {
+        body: JSON.stringify({ plate_number: formattedPlate })
+    })
+    .then(response => response.json())
+    .then(data => {
         if (data.success) {
-          window.location.href = '/mechanic/mechanic/addCar.html';
+            console.log(`Plate stored via API: ${formattedPlate}`);
         } else {
-          alert('Error storing plate: ' + data.message);
+            console.warn('API storage failed:', data.message);
         }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        alert('Error storing plate');
-      });
-    }
+    })
+    .catch(error => {
+        console.error('API error:', error);
+    })
+    .finally(() => {
+        // Redirect to add car page with plate as URL parameter (most reliable)
+        window.location.href = `/mechanic/addCar.html?plate=${encodeURIComponent(formattedPlate)}`;
+    });
+} 
 
     function resetUI() {
       setResult(`<div class="success">Camera Ready</div>`);

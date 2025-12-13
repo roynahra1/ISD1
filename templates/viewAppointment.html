@@ -95,6 +95,7 @@
     </style>
 </head>
 <body>
+    {% include 'topbar.html' %}
     <div class="container">
         <div class="search-card">
             <h2>Search Appointments</h2>
@@ -152,27 +153,26 @@
             carPlateInput.value = value;
         });
 
-        // FIXED: Better authentication handling
+        // Check authentication on page load
         function checkAuth() {
             return fetch('/auth/status', {
                 credentials: 'include'
             })
-            .then(response => {
-                if (!response.ok) {
+            .then(response => response.json())
+            .then(data => {
+                if (!data.logged_in) {
                     throw new Error('Not authenticated');
                 }
-                return response.json();
+                return data;
             });
         }
 
-        // FIXED: Initialize after auth check
         document.addEventListener('DOMContentLoaded', function() {
             checkAuth()
             .then(() => {
                 initializeSearchForm();
             })
             .catch(error => {
-                console.log('Not authenticated, redirecting to login');
                 window.location.href = '/login.html';
             });
         });

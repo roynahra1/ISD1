@@ -128,8 +128,17 @@ def test_admin_login_page(mock_render, client):
 @patch('routes.auth_routes.get_connection')
 def test_login_success(mock_get_conn, mock_db_connection, mock_db_cursor, client):
     """Test successful login"""
-    # Mock database response
-    mock_db_cursor.fetchone.return_value = ('hashed_password',)
+    # Mock database response as a dictionary (matches dictionary=True cursor)
+    mock_db_cursor.fetchone.return_value = {
+        'Username': 'testuser',
+        'Password': 'hashed_password',
+        'Email': 'testuser@example.com',
+        'PhoneNUMB': None,
+        'Owner_ID': None,
+        'Owner_Name': None,
+        'Owner_Email': None,
+        'Owner_Phone': None
+    }
     mock_get_conn.return_value = mock_db_connection
     
     # Mock password verification
@@ -234,7 +243,8 @@ def test_signup_success(mock_get_conn, mock_db_connection, mock_db_cursor, clien
         assert response.status_code == 201
         data = response.get_json()
         assert data['status'] == 'success'
-        assert data['message'] == 'Account created'
+        # Signup creates both account and owner profile
+        assert 'owner_id' in data
 
 
 @patch('routes.auth_routes.get_connection')
@@ -318,7 +328,7 @@ def test_signup_short_password(client):
     assert response.status_code == 400
     data = response.get_json()
     assert data['status'] == 'error'
-    assert 'Password too short' in data['message']
+    assert 'Password must be at least 6 characters' in data['message']
 
 
 @patch('routes.auth_routes.get_connection')

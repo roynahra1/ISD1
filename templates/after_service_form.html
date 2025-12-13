@@ -325,6 +325,17 @@
             margin: 2px;
         }
         
+        .edit-vehicle-btn {
+            background: linear-gradient(135deg, #3498db, #2980b9) !important;
+            margin: 20px 0 10px 0;
+        }
+        
+        .edit-vehicle-btn:hover {
+            background: linear-gradient(135deg, #2980b9, #1f639e) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4) !important;
+        }
+        
         @media (max-width: 768px) {
             body {
                 padding: 10px;
@@ -429,10 +440,16 @@
                     <input type="text" id="owner_phone" name="owner_phone" readonly 
                            class="readonly-field">
                 </div>
-                <!-- ADD THIS BUTTON -->
-<div class="form-actions" style="justify-content: flex-start; margin-top: 10px;">
-    <button type="button" id="editCarBtn" class="btn btn-success">✏️ Edit Car Information</button>
-</div>
+            </div>
+            
+            <!-- Edit Vehicle Button -->
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px dashed #dee2e6;">
+                <button type="button" id="editCarBtn" class="btn edit-vehicle-btn">
+                    ✏️ Edit Vehicle Information
+                </button>
+                <div style="margin-top: 8px; color: #666; font-size: 0.9em;">
+                    Need to update vehicle details? Click above to edit model, year, VIN, or owner information.
+                </div>
             </div>
         </div>
         
@@ -472,7 +489,7 @@
             <div class="form-group">
                 <label for="next_oil_change">Next Oil Change Due</label>
                 <input type="date" id="next_oil_change" name="next_oil_change">
-                <small style="color: #666;">Optional - leave empty to keep current schedule</small>
+                <small style="color: #666;">Optional - leave empty to auto-schedule for 3 months from today</small>
             </div>
             
             <div class="form-group">
@@ -511,221 +528,237 @@
     </div>
    <script>
     // DOM Elements
-const carPlateInput = document.getElementById('car_plate');
-const vinInput = document.getElementById('vin');
-const modelInput = document.getElementById('model');
-const yearInput = document.getElementById('year');
-const ownerNameInput = document.getElementById('owner_name');
-const ownerPhoneInput = document.getElementById('owner_phone');
-const submitBtn = document.getElementById('submitBtn');
-const backBtn = document.getElementById('backBtn');
-const messageDiv = document.getElementById('message');
-const loadingDiv = document.getElementById('loading');
-const detectedPlateDisplay = document.getElementById('detectedPlateDisplay');
-const currentPlateSpan = document.getElementById('currentPlate');
-const currentServiceDateSpan = document.getElementById('currentServiceDate');
-const carInfoDisplay = document.getElementById('carInfoDisplay');
-const carDetails = document.getElementById('carDetails');
-const nextOilChangeInput = document.getElementById('next_oil_change');
-const mileageInput = document.getElementById('mileage');
+    const carPlateInput = document.getElementById('car_plate');
+    const vinInput = document.getElementById('vin');
+    const modelInput = document.getElementById('model');
+    const yearInput = document.getElementById('year');
+    const ownerNameInput = document.getElementById('owner_name');
+    const ownerPhoneInput = document.getElementById('owner_phone');
+    const submitBtn = document.getElementById('submitBtn');
+    const backBtn = document.getElementById('backBtn');
+    const messageDiv = document.getElementById('message');
+    const loadingDiv = document.getElementById('loading');
+    const detectedPlateDisplay = document.getElementById('detectedPlateDisplay');
+    const currentPlateSpan = document.getElementById('currentPlate');
+    const currentServiceDateSpan = document.getElementById('currentServiceDate');
+    const carInfoDisplay = document.getElementById('carInfoDisplay');
+    const carDetails = document.getElementById('carDetails');
+    const nextOilChangeInput = document.getElementById('next_oil_change');
+    const mileageInput = document.getElementById('mileage');
+    const editCarBtn = document.getElementById('editCarBtn');
 
-// Edit car button functionality
-document.getElementById('editCarBtn').addEventListener('click', function() {
-    const plateNumber = carPlateInput.value.trim();
-    if (plateNumber) {
-        window.open(`/mechanic/edit-car?plate=${plateNumber}`, '_blank');
-    } else {
-        showMessage('No license plate available for editing', 'error');
-    }
-});
-
-// Initialize form with data from sessionStorage
-document.addEventListener('DOMContentLoaded', function() {
-    // Set today's date
-    const today = new Date();
-    const todayDisplay = today.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    });
-    currentServiceDateSpan.textContent = todayDisplay;
-
-    // Check for stored plate from detection page
-    const storedPlate = sessionStorage.getItem('detectedPlate');
-    
-    if (storedPlate) {
-        currentPlateSpan.textContent = storedPlate;
-        carPlateInput.value = storedPlate;
+    // Edit car button functionality - SIMPLE VERSION
+    editCarBtn.addEventListener('click', function() {
+        const plateNumber = carPlateInput.value.trim();
+        if (!plateNumber) {
+            showMessage('No license plate available for editing', 'error');
+            return;
+        }
         
-        // Auto-fetch car info
-        fetchCarInfo(storedPlate);
-    } else {
-        showMessage('No vehicle detected. Please go back and scan a license plate.', 'warning');
-        submitBtn.disabled = true;
+        // Store plate in sessionStorage and redirect
+        try {
+            sessionStorage.setItem('editCarPlate', plateNumber);
+            window.location.href = '/mechanic/edit-car';
+        } catch (error) {
+            console.error('Error storing plate:', error);
+            // Fallback
+            window.location.href = `/mechanic/edit-car?plate=${encodeURIComponent(plateNumber)}`;
+        }
+    });
+
+    // Initialize form with data from sessionStorage
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set today's date
+        const today = new Date();
+        const todayDisplay = today.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        });
+        currentServiceDateSpan.textContent = todayDisplay;
+
+        // Check for stored plate from detection page
+        const storedPlate = sessionStorage.getItem('detectedPlate');
+        
+        if (storedPlate) {
+            currentPlateSpan.textContent = storedPlate;
+            carPlateInput.value = storedPlate;
+            
+            // Auto-fetch car info
+            fetchCarInfo(storedPlate);
+        } else {
+            showMessage('No vehicle detected. Please go back and scan a license plate.', 'warning');
+            submitBtn.disabled = true;
+            editCarBtn.disabled = true;
+        }
+    });
+
+    // Fetch Car Information
+    function fetchCarInfo(plateNumber) {
+        showLoading(true);
+        clearMessage();
+
+        fetch(`/mechanic/api/car/${plateNumber}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Car not found');
+                }
+                return response.json();
+            })
+            .then(data => {
+                showLoading(false);
+                
+                if (data.success && data.car_info) {
+                    populateCarInfo(data.car_info);
+                    showMessage('Vehicle information loaded successfully!', 'success');
+                    editCarBtn.disabled = false;
+                } else {
+                    throw new Error('Car information not available');
+                }
+            })
+            .catch(error => {
+                showLoading(false);
+                showMessage('Error loading vehicle information. Please check the license plate.', 'error');
+                submitBtn.disabled = true;
+                editCarBtn.disabled = true;
+            });
     }
-});
 
-// Fetch Car Information
-function fetchCarInfo(plateNumber) {
-    showLoading(true);
-    clearMessage();
+    function populateCarInfo(car) {
+        // Populate readonly fields
+        carPlateInput.value = car.plate_number || '';
+        vinInput.value = car.vin || 'Not available';
+        modelInput.value = car.model || 'Not available';
+        yearInput.value = car.year || 'Not available';
+        ownerNameInput.value = car.owner_name || 'Not available';
+        ownerPhoneInput.value = car.owner_phone || 'Not available';
 
-    fetch(`/mechanic/api/car/${plateNumber}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Car not found');
-            }
-            return response.json();
+        // Update car details display
+        carDetails.innerHTML = `
+            <div><strong>Owner:</strong> ${car.owner_name || 'N/A'}</div>
+            <div><strong>Phone:</strong> ${car.owner_phone || 'N/A'}</div>
+            <div><strong>Email:</strong> ${car.owner_email || 'N/A'}</div>
+            <div><strong>Model:</strong> ${car.model || 'N/A'}</div>
+            <div><strong>Year:</strong> ${car.year || 'N/A'}</div>
+            <div><strong>VIN:</strong> ${car.vin || 'N/A'}</div>
+            ${car.next_oil_change ? `<div><strong>Next Oil Change:</strong> ${car.next_oil_change}</div>` : ''}
+        `;
+
+        // Pre-fill next oil change if available
+        if (car.next_oil_change) {
+            nextOilChangeInput.value = car.next_oil_change;
+        }
+
+        carInfoDisplay.style.display = 'block';
+        submitBtn.disabled = false;
+    }
+
+    // Form Submission
+    submitBtn.addEventListener('click', function() {
+        submitService();
+    });
+
+    function submitService() {
+        const carPlate = carPlateInput.value.trim();
+        const mileageValue = mileageInput.value;
+        const nextOilChange = nextOilChangeInput.value;
+        
+        // Basic validation
+        if (!mileageValue) {
+            showMessage('Please enter the current mileage', 'error');
+            mileageInput.classList.add('input-error');
+            mileageInput.focus();
+            return;
+        }
+
+        // Parse mileage as number
+        const mileage = parseInt(mileageValue.replace(/,/g, ''));
+        if (isNaN(mileage) || mileage <= 0) {
+            showMessage('Please enter a valid mileage number', 'error');
+            mileageInput.classList.add('input-error');
+            mileageInput.focus();
+            return;
+        }
+
+        const formData = {
+            car_plate: carPlate,
+            mileage: mileage,
+            next_oil_change: nextOilChange || null,
+            notes: document.getElementById('notes').value,
+            services_performed: Array.from(document.getElementById('services_performed').selectedOptions)
+                .map(option => parseInt(option.value))
+        };
+
+        showLoading(true);
+        clearMessage();
+
+        // Send to backend
+        fetch('/mechanic/api/complete-service', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
         })
+        .then(response => response.json())
         .then(data => {
             showLoading(false);
             
-            if (data.success && data.car_info) {
-                populateCarInfo(data.car_info);
-                showMessage('Vehicle information loaded successfully!', 'success');
+            if (data.success) {
+                showMessage(`✅ Service logged successfully! ${data.message}`, 'success');
+                submitBtn.disabled = true;
+                editCarBtn.disabled = true;
+                
+                // Clear form but keep vehicle info
+                mileageInput.value = '';
+                document.getElementById('notes').value = '';
+                document.getElementById('services_performed').selectedIndex = -1;
+                nextOilChangeInput.value = '';
+                
             } else {
-                throw new Error('Car information not available');
+                showMessage(`❌ ${data.message}`, 'error');
             }
         })
         .catch(error => {
             showLoading(false);
-            showMessage('Error loading vehicle information. Please check the license plate.', 'error');
-            submitBtn.disabled = true;
+            showMessage('Error submitting service record. Please try again.', 'error');
         });
-}
-
-function populateCarInfo(car) {
-    // Populate readonly fields
-    carPlateInput.value = car.plate_number || '';
-    vinInput.value = car.vin || 'Not available';
-    modelInput.value = car.model || 'Not available';
-    yearInput.value = car.year || 'Not available';
-    ownerNameInput.value = car.owner_name || 'Not available';
-    ownerPhoneInput.value = car.owner_phone || 'Not available';
-
-    // Update car details display
-    carDetails.innerHTML = `
-        <div><strong>Owner:</strong> ${car.owner_name || 'N/A'}</div>
-        <div><strong>Phone:</strong> ${car.owner_phone || 'N/A'}</div>
-        <div><strong>Email:</strong> ${car.owner_email || 'N/A'}</div>
-        <div><strong>Model:</strong> ${car.model || 'N/A'}</div>
-        <div><strong>Year:</strong> ${car.year || 'N/A'}</div>
-        <div><strong>VIN:</strong> ${car.vin || 'N/A'}</div>
-        ${car.next_oil_change ? `<div><strong>Next Oil Change:</strong> ${car.next_oil_change}</div>` : ''}
-    `;
-
-    // Pre-fill next oil change if available
-    if (car.next_oil_change) {
-        nextOilChangeInput.value = car.next_oil_change;
     }
 
-    carInfoDisplay.style.display = 'block';
-    submitBtn.disabled = false;
-}
-
-// Form Submission
-submitBtn.addEventListener('click', function() {
-    submitService();
-});
-
-function submitService() {
-    const carPlate = carPlateInput.value.trim();
-    const mileageValue = mileageInput.value;
-    const nextOilChange = nextOilChangeInput.value;
-    
-    // Basic validation
-    if (!mileageValue) {
-        showMessage('Please enter the current mileage', 'error');
-        mileageInput.classList.add('input-error');
-        mileageInput.focus();
-        return;
-    }
-
-    // Parse mileage as number
-    const mileage = parseInt(mileageValue.replace(/,/g, ''));
-    if (isNaN(mileage) || mileage <= 0) {
-        showMessage('Please enter a valid mileage number', 'error');
-        mileageInput.classList.add('input-error');
-        mileageInput.focus();
-        return;
-    }
-
-    const formData = {
-        car_plate: carPlate,
-        mileage: mileage,
-        next_oil_change: nextOilChange || null,
-        notes: document.getElementById('notes').value,
-        services_performed: Array.from(document.getElementById('services_performed').selectedOptions)
-            .map(option => parseInt(option.value))
-    };
-
-    showLoading(true);
-    clearMessage();
-
-    // Send to backend
-    fetch('/mechanic/api/complete-service', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        showLoading(false);
-        
-        if (data.success) {
-            showMessage(`✅ Service logged successfully! ${data.message}`, 'success');
-            submitBtn.disabled = true;
-            
-            // Clear form but keep vehicle info
-            mileageInput.value = '';
-            document.getElementById('notes').value = '';
-            document.getElementById('services_performed').selectedIndex = -1;
-            nextOilChangeInput.value = '';
-            
-        } else {
-            showMessage(`❌ ${data.message}`, 'error');
-        }
-    })
-    .catch(error => {
-        showLoading(false);
-        showMessage('Error submitting service record. Please try again.', 'error');
+    // Back to Detection
+    backBtn.addEventListener('click', function() {
+        sessionStorage.removeItem('detectedPlate');
+        sessionStorage.removeItem('editCarPlate');
+        window.location.href = '/mechanic/plate-detection';
     });
-}
 
-// Back to Detection
-backBtn.addEventListener('click', function() {
-    sessionStorage.removeItem('detectedPlate');
-    window.location.href = '/mechanic/plate-detection';
-});
-
-// Utility Functions
-function showMessage(text, type) {
-    messageDiv.innerHTML = `<div class="${type}">${text}</div>`;
-}
-
-function clearMessage() {
-    messageDiv.innerHTML = '';
-}
-
-function showLoading(show) {
-    loadingDiv.style.display = show ? 'block' : 'none';
-    submitBtn.disabled = show;
-}
-
-// Enter key support for form submission
-document.addEventListener('keypress', function(event) {
-    if (event.key === 'Enter' && !submitBtn.disabled) {
-        submitService();
+    // Utility Functions
+    function showMessage(text, type) {
+        messageDiv.innerHTML = `<div class="${type}">${text}</div>`;
     }
-});
 
-// Clear error styling when user starts typing
-mileageInput.addEventListener('input', function() {
-    this.classList.remove('input-error');
-});
-</script>
+    function clearMessage() {
+        messageDiv.innerHTML = '';
+    }
+
+    function showLoading(show) {
+        loadingDiv.style.display = show ? 'block' : 'none';
+        submitBtn.disabled = show;
+        editCarBtn.disabled = show;
+    }
+
+    // Enter key support for form submission
+    document.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter' && !submitBtn.disabled) {
+            submitService();
+        }
+    });
+
+    // Clear error styling when user starts typing
+    mileageInput.addEventListener('input', function() {
+        this.classList.remove('input-error');
+    });
+    </script>
 </body>
 </html>

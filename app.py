@@ -4,11 +4,9 @@ from flask import Flask, render_template, jsonify, session
 from flask_cors import CORS
 from datetime import timedelta
 from dotenv import load_dotenv
-import os
 
 # Load environment variables from .env
 load_dotenv()
-
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -63,14 +61,47 @@ def create_app(test_config=None):
             logger.error(f"Database connection failed: {e}")
             return None
 
+    # ===============================
+    # MAIN CLIENT ROUTES (DEFINE THESE FIRST!)
+    # ===============================
+    # Define these BEFORE any blueprints to ensure they take precedence
+    
+    @app.route('/')
+    def home():
+        return render_template('index.html')
 
-     
+    @app.route('/auto')
+    def auto():
+        return render_template('auto.html')
+
+    @app.route('/tires')
+    def tires():
+        return render_template('tires.html')
+
+    @app.route('/careers')
+    def careers():
+        return render_template('careers.html')
+
+    @app.route('/franchise')
+    def franchise():
+        return render_template('franch.html')
+
+    @app.route('/store')
+    def store():
+        return render_template('store.html')
+
+    @app.route('/offers')
+    def offers():
+        return render_template('offers.html')
+    
+    @app.route('/index.html')
+    def index_page():
+        return render_template('index.html')
+
     # ===============================
-    # REGISTER BLUEPRINTS (preserve everything)
+    # REGISTER BLUEPRINTS
     # ===============================
-    # We attempt to register your existing blueprints exactly as before.
-    # If a blueprint import fails we log but continue — this preserves all original behavior
-    # and avoids hard crashes on import-time missing modules.
+    # Register blueprints AFTER main routes
 
     # 1. Auth + Appointment
     try:
@@ -112,11 +143,12 @@ def create_app(test_config=None):
     except Exception as e:
         logger.error(f"❌ Car routes import failed: {e}")
 
-    # 5. Template routes
+    # 5. Template routes - WITH URL PREFIX
     try:
         from routes.template_routes import template_bp
-        app.register_blueprint(template_bp)
-        logger.info("✅ Template routes registered")
+        # Register with a URL prefix to avoid conflicts
+        app.register_blueprint(template_bp, url_prefix='/templates')
+        logger.info("✅ Template routes registered under /templates/*")
     except Exception as e:
         logger.error(f"❌ Template routes missing or failed to import: {e}")
 
@@ -168,8 +200,6 @@ def create_app(test_config=None):
     # ALL YOUR ORIGINAL UI ROUTES (PRESERVED)
     # ===============================
     # These routes were present in your original app; we keep them exactly as they were.
-    # However to avoid duplicate/conflict with detection blueprint we only add the explicit
-    # /car/plate-detection UI route if the detection blueprint was NOT registered.
     @app.route('/mechanic/dashboard')
     def mechanic_dashboard_redirect():
         return render_template("mechanic_dashboard.html")
@@ -223,10 +253,6 @@ def create_app(test_config=None):
     @app.route('/homee.html')
     def homee_page():
         return render_template("homee.html")
-
-    @app.route('/index.html')
-    def index_page():
-        return render_template("index.html")
 
     @app.route('/service-history.html')
     def service_history_html():
@@ -290,10 +316,6 @@ def create_app(test_config=None):
             "database": db_status,
             "service": "Auto Service Management System"
         })
-
-    @app.route("/index.html")
-    def index():
-        return render_template("index.html")
 
     # ===============================
     # ERROR HANDLERS

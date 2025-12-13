@@ -75,29 +75,47 @@ class WorkingPlateDetector:
     def clean_text(self, text):
         if not text:
             return ""
-        cleaned = re.sub(r'[^A-Z0-9]', '', text.upper())
-        return cleaned
+        # Normalize Arabic-Indic digits to ASCII
+        trans = str.maketrans({'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9',
+                               '۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9'})
+        s = text.translate(trans).upper()
+        # Allow hyphens and spaces in initial cleaning (they may be part of some plate formats)
+        s = re.sub(r'[^A-Z0-9\-\s]', '', s)
+        # Collapse spaces/hyphens for validation convenience
+        collapsed = re.sub(r'[\-\s]+', '', s)
+        return collapsed
 
     def is_valid_plate(self, text):
-        if not text or len(text) < 4 or len(text) > 8:
+        # Accept a wider range of plate lengths and patterns (including mixed formats)
+        if not text:
             return False
+        if len(text) < 3 or len(text) > 12:
+            return False
+
+        # Basic check: must contain at least a digit or a letter
         has_letters = any(c.isalpha() for c in text)
         has_digits = any(c.isdigit() for c in text)
-        if not (has_letters and has_digits):
+        if not (has_letters or has_digits):
             return False
+
+        # Patterns to cover more international styles (letters+digits, digits+letters, mixed)
         patterns = [
-            r'^[A-Z]{1,3}\d{1,4}$',
-            r'^\d{3,4}[A-Z]{1,2}$',
-            r'^[A-Z]{1,2}\d{2}[A-Z]{1,2}$'
+            r'^[A-Z]{1,4}\d{1,4}$',            # ABC1234
+            r'^\d{1,4}[A-Z]{1,4}$',            # 1234ABC
+            r'^[A-Z]{1,2}\d{1,4}[A-Z]{0,2}$',  # AB12C
+            r'^[A-Z0-9]{3,10}$'                 # fallback: alnum between 3-10 chars
         ]
         return any(re.match(p, text) for p in patterns)
 
     def ocr_region(self, region):
         try:
             proc = self.preprocess_image(region)
+            # Try multiple PSMs and OEMs; whitelist common plate chars
             configs = [
-                '--oem 3 --psm 8 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
-                '--oem 3 --psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+                '--oem 3 --psm 8 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
+                '--oem 3 --psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
+                '--oem 1 --psm 11 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
+                '--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- '
             ]
             best_text = None
             best_conf = 0.0
@@ -115,6 +133,30 @@ class WorkingPlateDetector:
                     if self.is_valid_plate(cleaned) and conf > best_conf:
                         best_text = cleaned
                         best_conf = conf
+
+            # If not found, try simple rotation attempts (small angles)
+            if not best_text:
+                for angle in (-10, -5, 5, 10):
+                    try:
+                        (h, w) = proc.shape[:2]
+                        M = cv2.getRotationMatrix2D((w//2, h//2), angle, 1.0)
+                        rotated = cv2.warpAffine(proc, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+                        data = pytesseract.image_to_data(rotated, config=configs[0], output_type=pytesseract.Output.DICT)
+                        texts = data.get('text', []); confs = data.get('conf', [])
+                        for i, t in enumerate(texts):
+                            if not t or str(t).strip() == "":
+                                continue
+                            conf = self._safe_conf(confs[i] if i < len(confs) else None)
+                            if conf < self.min_confidence:
+                                continue
+                            cleaned = self.clean_text(t)
+                            if self.is_valid_plate(cleaned) and conf > best_conf:
+                                best_text = cleaned; best_conf = conf
+                                break
+                        if best_text:
+                            break
+                    except Exception:
+                        continue
             return best_text, best_conf
         except Exception as e:
             logger.error("OCR region error: %s", e)
@@ -143,7 +185,8 @@ class WorkingPlateDetector:
             ar = float(wc)/float(hc)
             area = wc*hc
             img_area = image.shape[0]*image.shape[1]
-            if 2.0 <= ar <= 6.0 and 0.001 < (area/img_area) < 0.5 and wc>=60 and hc>=20:
+            # Broaden aspect ratio and area thresholds to capture more plate styles
+            if 1.2 <= ar <= 8.0 and 0.0005 < (area/img_area) < 0.6 and wc>=40 and hc>=15:
                 candidates.append((x,y,wc,hc))
         candidates = sorted(candidates, key=lambda r: r[2]*r[3], reverse=True)
         best_text = None
@@ -157,9 +200,28 @@ class WorkingPlateDetector:
             if txt and conf > best_conf:
                 best_text = txt; best_conf = conf
         if not best_text:
-            txt, conf = self.ocr_region(image)
-            if txt and conf > best_conf:
-                best_text = txt; best_conf = conf
+            # As a fallback, attempt tiled scans across the image (widen focus)
+            h_img, w_img = image.shape[:2]
+            tile_w = max(200, w_img // 3)
+            tile_h = max(60, h_img // 6)
+            for yy in range(0, h_img, tile_h//2):
+                for xx in range(0, w_img, tile_w//2):
+                    x2 = min(w_img, xx + tile_w)
+                    y2 = min(h_img, yy + tile_h)
+                    tile = image[yy:y2, xx:x2]
+                    txt, conf = self.ocr_region(tile)
+                    if txt and conf > best_conf:
+                        best_text = txt; best_conf = conf
+                        # early exit if confident
+                        if best_conf >= 0.9:
+                            break
+                if best_conf >= 0.9:
+                    break
+            # final attempt on full image
+            if not best_text:
+                txt, conf = self.ocr_region(image)
+                if txt and conf > best_conf:
+                    best_text = txt; best_conf = conf
         return best_text, best_conf
 
 plate_detector = WorkingPlateDetector()

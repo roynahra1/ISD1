@@ -28,13 +28,49 @@ def serve_update():
 # Appointment CRUD routes
 @appointment_bp.route("/book", methods=["POST"])
 def book_appointment():
+    # ============================================
+    # 1. CHECK AUTHENTICATION AND GET OWNER_ID
+    # ============================================
+    # Allow either regular logged-in users or mechanics/admins (mechanic session keys)
+    if not (session.get("logged_in") or session.get("mechanic_logged_in")):
+        return jsonify({"status": "error", "message": "Please login first"}), 401
+
+    acting_mechanic = bool(session.get("mechanic_logged_in"))
+
+    # Read request body early so mechanics may provide an explicit owner_id
     data = request.get_json() or {}
     car_plate = (data.get("car_plate") or "").strip()
     date = data.get("date")
     time = data.get("time")
     service_ids = data.get("service_ids", [])
     notes = data.get("notes", "")
+    # Mechanics may pass an explicit owner_id in payload when acting on behalf of a user
+    payload_owner_id = data.get("owner_id")
+    owner_id = session.get("owner_id")
+    if acting_mechanic and payload_owner_id:
+        try:
+            owner_id = int(payload_owner_id)
+        except (ValueError, TypeError):
+            return jsonify({"status": "error", "message": "Invalid owner_id in payload"}), 400
+    # If not a mechanic and no owner linked, instruct to link an owner
+    if not acting_mechanic and not owner_id:
+        return jsonify({
+            "status": "error",
+            "message": "Your account is not linked to an owner profile. Please link an owner before booking.",
+            "link_endpoint": "/owner/link"
+        }), 400
+    # If mechanic is acting but did not provide an owner_id, require it
+    if acting_mechanic and not owner_id:
+        return jsonify({"status": "error", "message": "Mechanic must provide an owner_id in the request body when booking on behalf of a user"}), 400
+    
+    # Optional car details
+    car_model = (data.get("car_model") or "Unknown").strip()
+    car_year = data.get("car_year") or datetime.now().year
+    vin = (data.get("vin") or "").strip().upper() or None
 
+    # ============================================
+    # 3. VALIDATE INPUTS
+    # ============================================
     if not car_plate or not date or not time or not service_ids:
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
 
@@ -43,9 +79,14 @@ def book_appointment():
 
     try:
         requested_dt = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+        if requested_dt < datetime.now():
+            return jsonify({"status": "error", "message": "Cannot book an appointment in the past"}), 400
     except ValueError:
         return jsonify({"status": "error", "message": "Invalid date/time format"}), 400
 
+    # ============================================
+    # 4. DATABASE OPERATIONS
+    # ============================================
     conn = None
     cursor = None
     try:
@@ -53,28 +94,87 @@ def book_appointment():
         cursor = conn.cursor()
         conn.start_transaction()
 
-        if requested_dt < datetime.now():
-            conn.rollback()
-            return jsonify({"status": "error", "message": "Cannot book an appointment in the past"}), 400
+        # Validate provided owner_id (if any) exists in owner table
+        if owner_id:
+            cursor.execute("SELECT 1 FROM owner WHERE Owner_ID = %s", (owner_id,))
+            if not cursor.fetchone():
+                conn.rollback()
+                return jsonify({"status": "error", "message": "Provided owner_id does not exist"}), 400
 
+        # ============================================
+        # 4.1 CHECK TIME SLOT AVAILABILITY
+        # ============================================
         cursor.execute("SELECT 1 FROM appointment WHERE Date = %s AND Time = %s", (date, time))
         if cursor.fetchone():
             conn.rollback()
             return jsonify({"status": "error", "message": "Time slot already booked"}), 409
 
-        cursor.execute("SELECT 1 FROM car WHERE Car_plate = %s", (car_plate,))
-        if not cursor.fetchone():
-            cursor.execute(
-                "INSERT INTO car (Car_plate, Model, Year, VIN, Next_Oil_Change, Owner_id) VALUES (%s,%s,%s,%s,%s,%s)",
-                (car_plate, "Unknown", 2020, "VIN-UNKNOWN", None, 1),
-            )
+        # ============================================
+        # 4.2 CHECK VIN UNIQUENESS (if provided)
+        # ============================================
+        if vin:
+            cursor.execute("SELECT Car_plate FROM car WHERE VIN = %s AND Car_plate != %s", (vin, car_plate))
+            if cursor.fetchone():
+                conn.rollback()
+                return jsonify({"status": "error", "message": "VIN already in use by another car"}), 409
 
+        # ============================================
+        # 4.3 CHECK/CREATE CAR WITH OWNER_ID
+        # ============================================
+        cursor.execute("SELECT Car_plate, Owner_id FROM car WHERE Car_plate = %s", (car_plate,))
+        car_result = cursor.fetchone()
+        car_created = False
+        
+        if car_result:
+            # Car exists - check ownership
+            existing_owner_id = car_result[1]
+            
+            if existing_owner_id is None:
+                # Car exists without owner - assign to current user
+                cursor.execute(
+                    "UPDATE car SET Owner_id = %s, Model = %s, Year = %s WHERE Car_plate = %s",
+                    (owner_id, car_model, car_year, car_plate)
+                )
+                print(f"✅ Updated existing car {car_plate} with owner_id {owner_id}")
+                
+            elif existing_owner_id != owner_id:
+                # Car belongs to a different owner. Do NOT change ownership here.
+                # Allow booking by another authenticated user (e.g., admin/mechanic or
+                # a user acting on behalf of the owner) while keeping Owner_id unchanged.
+                # Update non-ownership fields (model/year/vin) but do not assign Owner_id.
+                cursor.execute(
+                    "UPDATE car SET Model = %s, Year = %s, VIN = %s WHERE Car_plate = %s",
+                    (car_model, car_year, vin, car_plate)
+                )
+                print(f"ℹ️ Car {car_plate} belongs to owner {existing_owner_id}; booking by owner {owner_id} will not claim the car")
+            else:
+                # Car already belongs to this user - update details if needed
+                cursor.execute(
+                    "UPDATE car SET Model = %s, Year = %s, VIN = %s WHERE Car_plate = %s",
+                    (car_model, car_year, vin, car_plate)
+                )
+                
+        else:
+            # Create new car linked to the logged-in owner
+            cursor.execute(
+                "INSERT INTO car (Car_plate, Model, Year, VIN, Next_Oil_Change, Owner_id) VALUES (%s, %s, %s, %s, %s, %s)",
+                (car_plate, car_model, car_year, vin, None, owner_id)
+            )
+            car_created = True
+            print(f"✅ Created new car {car_plate} with owner_id {owner_id}")
+
+        # ============================================
+        # 4.4 CREATE APPOINTMENT RECORD
+        # ============================================
         cursor.execute(
             "INSERT INTO appointment (Date, Time, Notes, Car_plate) VALUES (%s, %s, %s, %s)",
             (date, time, notes, car_plate),
         )
         appointment_id = cursor.lastrowid
 
+        # ============================================
+        # 4.5 ADD SERVICES
+        # ============================================
         cursor.execute("SELECT Service_ID FROM service")
         valid_ids = {row[0] for row in cursor.fetchall()}
         invalid = [sid for sid in service_ids if sid not in valid_ids]
@@ -88,10 +188,23 @@ def book_appointment():
                 (appointment_id, sid),
             )
 
+        # ============================================
+        # 4.6 COMMIT TRANSACTION
+        # ============================================
         conn.commit()
-        return jsonify(
-            {"status": "success", "message": f"Appointment booked for {car_plate} on {date} at {time}", "appointment_id": appointment_id}
-        ), 201
+        
+        # Log successful booking
+        print(f"✅ Appointment booked: ID={appointment_id}, Car={car_plate}, Owner={owner_id}, Date={date} {time}")
+        
+        return jsonify({
+            "status": "success", 
+            "message": f"Appointment booked for {car_plate} on {date} at {time}",
+            "appointment_id": appointment_id,
+            "owner_id": owner_id,
+            "car_plate": car_plate,
+            "car_created": car_created
+        }), 201
+        
     except Error as err:
         logger.error(f"Database error in book_appointment: {err}")
         if conn:

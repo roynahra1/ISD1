@@ -245,12 +245,16 @@
             font-weight: bold;
             color: white;
             display: inline-block;
+            margin: 2px;
         }
 
         .type-maintenance { background: #3498db; }
         .type-repair { background: #e74c3c; }
         .type-inspection { background: #f39c12; }
         .type-oil-change { background: #27ae60; }
+        .type-tire-rotation { background: #9b59b6; }
+        .type-brake-inspection { background: #e67e22; }
+        .type-battery-check { background: #16a085; }
         .type-tire { background: #9b59b6; }
         .type-brake { background: #e67e22; }
         .type-electrical { background: #8e44ad; }
@@ -538,8 +542,14 @@
             services.forEach(service => {
                 const row = document.createElement('tr');
                 
-                const serviceType = service.Service_Type || 'Maintenance';
-                const typeClass = `type-${serviceType.toLowerCase().replace(' ', '-')}`;
+                const serviceTypesStr = service.Service_Type || 'Maintenance';
+                const serviceTypes = serviceTypesStr.split(', ');
+                
+                // Create badges for each service type
+                const serviceTypeBadges = serviceTypes.map(type => {
+                    const typeClass = `type-${type.toLowerCase().replace(/\s+/g, '-')}`;
+                    return `<span class="service-type ${typeClass}">${type}</span>`;
+                }).join(' ');
                 
                 const date = new Date(service.Service_Date);
                 const formattedDate = service.Service_Date ? date.toLocaleDateString() : 'N/A';
@@ -556,7 +566,7 @@
                         <small>${service.PhoneNUMB || ''}</small>
                     </td>
                     <td>
-                        <span class="service-type ${typeClass}">${serviceType}</span>
+                        ${serviceTypeBadges}
                     </td>
                     <td>${service.Mileage ? service.Mileage.toLocaleString() + ' km' : 'N/A'}</td>
                     <td>${service.Notes || 'No notes'}</td>

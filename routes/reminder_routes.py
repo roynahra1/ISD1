@@ -163,11 +163,11 @@ Your vehicles:
 Book Online: http://192.168.1.7:5000/index.html
 
 Or contact us:
-• Phone: +961-1-234567
+• Phone: +961-70631093
 • Email: service@isfgarage.com
 
 Thank you,
-ISD Garage Team
+ISF Garage Team
 """
 
     try:

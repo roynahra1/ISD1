@@ -146,6 +146,7 @@
   </style>
 </head>
 <body>
+  {% include 'topbar.html' %}
   <div class="container">
     <div class="booking-card">
       <h2>Book New Appointment</h2>
@@ -161,6 +162,19 @@
                  placeholder="e.g., A123456" required
                  pattern="[A-Za-z][0-9]{1,6}"
                  minlength="2" maxlength="7">
+        </div>
+
+        <div class="form-group">
+          <label for="car_model">Car Model</label>
+          <input type="text" id="car_model" class="form-control"
+                 placeholder="e.g., Corolla, Civic" 
+                 minlength="2" maxlength="80">
+        </div>
+
+        <div class="form-group">
+          <label for="car_year">Car Year</label>
+          <input type="number" id="car_year" class="form-control"
+                 placeholder="e.g., 2018" min="1886" max="2100">
         </div>
 
         <div class="form-group">
@@ -197,6 +211,18 @@
   </div>
 
   <script>
+    // Check authentication on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      fetch('/auth/status', { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.logged_in) {
+            window.location.href = '/login.html';
+          }
+        })
+        .catch(() => window.location.href = '/login.html');
+    });
+
     const carPlateInput = document.getElementById('car_plate');
 
     carPlateInput.addEventListener('keydown', function (e) {
@@ -264,6 +290,8 @@
 
       const data = {
         car_plate: form.car_plate.value.trim(),
+        car_model: form.car_model ? form.car_model.value.trim() : 'Unknown',
+        car_year: form.car_year && form.car_year.value ? parseInt(form.car_year.value) : new Date().getFullYear(),
         date: form.date.value,
         time: form.time.value,
         service_ids: selectedServices,

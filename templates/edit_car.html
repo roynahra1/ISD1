@@ -262,7 +262,7 @@
         
         .loading {
             display: none;
-                        text-align: center;
+            text-align: center;
             padding: 20px;
         }
         
@@ -382,6 +382,32 @@
             color: #2c3e50;
         }
         
+        /* Direct load styling */
+        .direct-load-header {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+        
+        .direct-load-header.show {
+            display: block;
+        }
+        
+        /* Visual feedback for validation */
+        .input-valid {
+            border-color: #27ae60 !important;
+            background-color: #f8fff9 !important;
+        }
+        
+        .input-invalid {
+            border-color: #e74c3c !important;
+            background-color: #fff8f8 !important;
+        }
+        
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .form-row {
@@ -414,17 +440,25 @@
 <body>
     <div class="container">
         <div class="header">
-            <a href="/mechanic/dashboard" class="back-btn">← Back to Dashboard</a>
+            <a href="javascript:goBackAppropriately()" class="back-btn">← Back</a>
             <div class="user-info">Logged in as: <span id="username"></span></div>
             <h1>Edit Car Information</h1>
             <p>Search for a car to update its information</p>
         </div>
         
         <div class="content">
+            <!-- Direct Load Header (shown when coming from after-service form) -->
+            <div id="directLoadHeader" class="direct-load-header">
+                <h3 style="margin: 0; font-size: 18px;">Editing Vehicle from Service Form</h3>
+                <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 14px;">
+                    Vehicle loaded directly from after-service form
+                </p>
+            </div>
+            
             <div class="alert" id="alert"></div>
             
             <!-- Search Section -->
-            <div id="searchSection" class="search-section active-section">
+            <div id="searchSection" class="search-section">
                 <h2 style="margin-bottom: 20px; color: #2c3e50;">Search Car</h2>
                 
                 <div class="search-methods">
@@ -434,7 +468,7 @@
                 
                 <!-- License Plate Search -->
                 <div id="plateSearch" class="search-input-container">
-                    <input type="text" id="plateSearchInput" placeholder="Enter license plate (e.g., ABC123)" autocomplete="off">
+                    <input type="text" id="plateSearchInput" placeholder="Enter license plate (e.g., A123, B4567)" autocomplete="off">
                     <button class="btn btn-search" onclick="searchByPlate()">🔍 Search Plate</button>
                 </div>
                 
@@ -442,6 +476,14 @@
                 <div id="vinSearch" class="search-input-container" style="display: none;">
                     <input type="text" id="vinSearchInput" placeholder="Enter VIN number (17 characters)" autocomplete="off">
                     <button class="btn btn-search" onclick="searchByVIN()">🔍 Search VIN</button>
+                </div>
+                
+                <!-- "Car Not Found" Section -->
+                <div id="carNotFoundSection" style="display: none; text-align: center; margin-top: 20px; padding: 20px; border: 2px dashed #dee2e6; border-radius: 10px; background: #f8f9fa;">
+                    <h3 style="color: #666; margin-bottom: 15px;">Car Not Found</h3>
+                    <p style="color: #999; margin-bottom: 20px;">This car doesn't exist in the database. You can add it as a new car.</p>
+                    <button class="btn btn-success" onclick="redirectToAddCar()">➕ Add New Car</button>
+                    <button class="btn btn-secondary" onclick="showSearchAgain()" style="margin-left: 10px;">Search Again</button>
                 </div>
                 
                 <div id="searchResults" class="results-container"></div>
@@ -467,8 +509,10 @@
                     <!-- Car Plate (Read-only) -->
                     <div class="form-group">
                         <label for="carPlate" class="required">License Plate</label>
-                        <input type="text" id="carPlate" readonly style="background-color: #f8f9fa;">
-                        <div class="field-info">Cannot be changed - used as unique identifier</div>
+                        <input type="text" id="carPlate" readonly style="background-color: #f8f9fa;" 
+                               pattern="[A-Z][0-9]{1,6}" 
+                               title="Format: One capital letter followed by 1-6 digits (e.g., A123, B4567)">
+                        <div class="field-info">Format: One capital letter followed by 1-6 digits (e.g., A123, B4567). Cannot be changed - used as unique identifier</div>
                     </div>
                     
                     <!-- Car Details -->
@@ -489,7 +533,7 @@
                         <label for="carVIN" class="required">VIN Number (17 characters)</label>
                         <input type="text" id="carVIN" required maxlength="17" placeholder="1HG1001ABC263194A">
                         <div id="vinDisplay" class="vin-display" style="display: none;"></div>
-                        <div class="field-info">Must be exactly 17 alphanumeric characters</div>
+                        <div class="field-info">Must be exactly 17 alphanumeric characters (excluding I, O, Q)</div>
                     </div>
                     
                     <!-- Next Oil Change -->
@@ -559,435 +603,781 @@
     </div>
     
     <script>
-        let currentSearchMethod = 'plate';
-        let currentCarData = null;
-        let searchResultsCache = {};
+    let currentSearchMethod = 'plate';
+    let currentCarData = null;
+    let cameFromAfterServiceForm = false;
+    let lastSearchedPlate = ''; // Store the last searched plate
+    
+    // Helper functions for license plate validation and formatting
+    function validateLicensePlate(plate) {
+        // Remove any spaces and convert to uppercase
+        plate = plate.replace(/\s/g, '').toUpperCase();
         
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('username').textContent = localStorage.getItem('mechanic_username') || 'Mechanic';
+        // Check format: 1 letter followed by 1-6 digits
+        const plateRegex = /^[A-Z][0-9]{1,6}$/;
+        return plateRegex.test(plate);
+    }
+    
+    function formatLicensePlate(plate) {
+        // Remove any non-alphanumeric characters
+        plate = plate.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        
+        // If empty, return empty
+        if (!plate) return '';
+        
+        // Extract first letter (must be a letter)
+        const firstChar = plate.charAt(0).toUpperCase();
+        const isFirstCharLetter = /[A-Z]/.test(firstChar);
+        
+        // Extract digits (up to 6 digits)
+        const digits = plate.slice(1).replace(/[^0-9]/g, '').slice(0, 6);
+        
+        // If first character is not a letter, don't format
+        if (!isFirstCharLetter) {
+            return firstChar + digits;
+        }
+        
+        return firstChar + digits;
+    }
+    
+    // VIN validation helper function
+    function validateVIN(vin) {
+        vin = vin.toUpperCase().replace(/\s/g, '');
+        
+        // VIN must be exactly 17 alphanumeric characters (excluding I, O, Q)
+        const vinRegex = /^[A-HJ-NPR-Z0-9]{17}$/;
+        return vinRegex.test(vin);
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Display username
+        document.getElementById('username').textContent = localStorage.getItem('mechanic_username') || 'Mechanic';
+        
+        // Check for plate in sessionStorage first (preferred method - no URL params)
+        let plateToLoad = null;
+        let fromSessionStorage = false;
+        
+        try {
+            plateToLoad = sessionStorage.getItem('editCarPlate');
+            if (plateToLoad) {
+                fromSessionStorage = true;
+                cameFromAfterServiceForm = true;
+                // Clear immediately after reading
+                sessionStorage.removeItem('editCarPlate');
+            }
+        } catch (error) {
+            console.log('Session storage error:', error);
+        }
+        
+        // Fallback: Check URL parameters (if sessionStorage failed)
+        if (!plateToLoad) {
+            const urlParams = new URLSearchParams(window.location.search);
+            plateToLoad = urlParams.get('plate');
+            if (plateToLoad) {
+                cameFromAfterServiceForm = true;
+            }
+        }
+        
+        if (plateToLoad && plateToLoad.trim() !== '') {
+            // Show direct load header
+            if (cameFromAfterServiceForm) {
+                document.getElementById('directLoadHeader').classList.add('show');
+            }
+            
+            // Load the car directly
+            loadCarDirectly(plateToLoad.trim(), fromSessionStorage);
+        } else {
+            // No plate provided, show search section normally
+            document.getElementById('searchSection').classList.add('active-section');
             document.getElementById('plateSearchInput').focus();
-        });
-        
-        function setSearchMethod(method) {
-            currentSearchMethod = method;
-            
-            // Update button styles
-            document.getElementById('plateMethodBtn').classList.toggle('active', method === 'plate');
-            document.getElementById('vinMethodBtn').classList.toggle('active', method === 'vin');
-            
-            // Show/hide search inputs
-            document.getElementById('plateSearch').style.display = method === 'plate' ? 'flex' : 'none';
-            document.getElementById('vinSearch').style.display = method === 'vin' ? 'flex' : 'none';
-            
-            // Clear inputs and results
-            document.getElementById('plateSearchInput').value = '';
-            document.getElementById('vinSearchInput').value = '';
-            document.getElementById('searchResults').innerHTML = '';
-            
-            // Set focus
-            if (method === 'plate') {
-                document.getElementById('plateSearchInput').focus();
-            } else {
-                document.getElementById('vinSearchInput').focus();
-            }
         }
+    });
+    
+    async function loadCarDirectly(plateNumber, fromSessionStorage = true) {
+        showLoading(`Loading ${plateNumber}...`);
+        lastSearchedPlate = plateNumber; // Store the plate
         
-        function showAlert(message, type = 'success') {
-            const alert = document.getElementById('alert');
-            alert.textContent = message;
-            alert.className = `alert alert-${type}`;
-            alert.style.display = 'block';
+        try {
+            const response = await fetch(`/mechanic/api/car/${encodeURIComponent(plateNumber)}`);
+            const data = await response.json();
             
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 5000);
-        }
-        
-        function showLoading(text = 'Loading...') {
-            document.getElementById('loadingText').textContent = text;
-            document.getElementById('loading').style.display = 'block';
-        }
-        
-        function hideLoading() {
-            document.getElementById('loading').style.display = 'none';
-        }
-        
-        async function searchByPlate() {
-            const plate = document.getElementById('plateSearchInput').value.trim().toUpperCase();
-            
-            if (!plate) {
-                showAlert('Please enter a license plate', 'warning');
-                return;
-            }
-            
-            showLoading('Searching for car...');
-            
-            try {
-                const response = await fetch(`/mechanic/api/car/${encodeURIComponent(plate)}`);
-                const data = await response.json();
+            if (data.success && data.car_info) {
+                // Hide search, show edit form directly
+                document.getElementById('searchSection').classList.remove('active-section');
+                document.getElementById('editSection').classList.add('active-section');
                 
-                if (data.success) {
-                    displayCarForEdit(data.car_info);
-                } else {
-                    showAlert(data.message || 'Car not found', 'error');
-                    displaySearchResults([], 'No cars found with this plate');
-                }
-            } catch (error) {
-                showAlert('Error searching car: ' + error.message, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-        
-        async function searchByVIN() {
-            const vin = document.getElementById('vinSearchInput').value.trim().toUpperCase();
-            
-            if (!vin) {
-                showAlert('Please enter a VIN number', 'warning');
-                return;
-            }
-            
-            showLoading('Searching by VIN...');
-            
-            try {
-                const response = await fetch(`/mechanic/api/search-by-vin?vin=${encodeURIComponent(vin)}`);
-                const data = await response.json();
+                // AUTO-FILL THE FORM WITH CAR DATA
+                await displayCarForEdit(data.car_info);
                 
-                if (data.success) {
-                    if (data.matches_found === 1) {
-                        displayCarForEdit(data.car_info);
-                    } else if (data.matches_found > 1) {
-                        displayMultipleResults(data.cars, 'VIN');
-                    } else {
-                        showAlert('No cars found with this VIN', 'error');
+                // Show success message
+                showAlert(`✅ Loaded vehicle: ${plateNumber}`, 'success');
+                
+                // If from sessionStorage, clear URL parameter if it exists
+                if (fromSessionStorage) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('plate')) {
+                        window.history.replaceState({}, '', '/mechanic/edit-car');
                     }
-                } else {
-                    showAlert(data.message || 'No cars found', 'error');
                 }
-            } catch (error) {
-                showAlert('Error searching VIN: ' + error.message, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-        
-        function displayMultipleResults(cars, searchType) {
-            const resultsContainer = document.getElementById('searchResults');
-            
-            let html = `<div style="padding: 10px; color: #666; font-size: 14px;">
-                Found ${cars.length} cars with matching ${searchType}. Select one:</div>`;
-            
-            cars.forEach(car => {
-                html += `
-                    <div class="result-item" onclick="selectCarFromResults('${car.plate_number}')">
-                        <div class="car-plate">${car.plate_number}</div>
-                        <div class="car-details">
-                            <strong>Model:</strong> ${car.model || 'Unknown'}<br>
-                            <strong>Year:</strong> ${car.year || 'Unknown'}<br>
-                            <strong>VIN:</strong> ${car.vin}<br>
-                            <strong>Owner:</strong> ${car.owner_name || 'Unknown'}
-                        </div>
-                    </div>
-                `;
-            });
-            
-            resultsContainer.innerHTML = html;
-        }
-        
-        async function selectCarFromResults(plateNumber) {
-            showLoading('Loading car details...');
-            
-            try {
-                const response = await fetch(`/mechanic/api/car/${encodeURIComponent(plateNumber)}`);
-                const data = await response.json();
+            } else {
+                // Car not found - show "not found" section
+                document.getElementById('searchSection').classList.add('active-section');
+                document.getElementById('editSection').classList.remove('active-section');
+                document.getElementById('directLoadHeader').classList.remove('show');
                 
-                if (data.success) {
-                    displayCarForEdit(data.car_info);
-                } else {
-                    showAlert('Error loading car details', 'error');
-                }
-            } catch (error) {
-                showAlert('Error: ' + error.message, 'error');
-            } finally {
-                hideLoading();
+                // Show the "car not found" section
+                document.getElementById('carNotFoundSection').style.display = 'block';
+                
+                // Pre-fill the plate in search input
+                document.getElementById('plateSearchInput').value = plateNumber;
+                
+                showAlert(`❌ Car "${plateNumber}" not found in database`, 'error');
+            }
+        } catch (error) {
+            showAlert(`❌ Could not load "${plateNumber}". Please search for it.`, 'error');
+            // Show search section with the plate pre-filled
+            document.getElementById('searchSection').classList.add('active-section');
+            document.getElementById('editSection').classList.remove('active-section');
+            document.getElementById('directLoadHeader').classList.remove('show');
+            document.getElementById('plateSearchInput').value = plateNumber;
+            document.getElementById('plateSearchInput').focus();
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    async function displayCarForEdit(car) {
+        currentCarData = car;
+        
+        // AUTO-FILL ALL FORM FIELDS
+        document.getElementById('originalCarPlate').value = car.plate_number;
+        document.getElementById('carPlate').value = car.plate_number;
+        document.getElementById('carModel').value = car.model || '';
+        document.getElementById('carYear').value = car.year || '';
+        document.getElementById('carVIN').value = car.vin || '';
+        
+        // Format VIN display
+        const vinDisplay = document.getElementById('vinDisplay');
+        if (car.vin) {
+            vinDisplay.textContent = `VIN: ${car.vin}`;
+            vinDisplay.style.display = 'block';
+            
+            // Add visual feedback for VIN validation
+            if (validateVIN(car.vin)) {
+                vinDisplay.style.borderLeft = '4px solid #27ae60';
+            } else {
+                vinDisplay.style.borderLeft = '4px solid #e74c3c';
             }
         }
         
-        async function displayCarForEdit(car) {
-            currentCarData = car;
-            
-            // Populate form fields
-            document.getElementById('originalCarPlate').value = car.plate_number;
-            document.getElementById('carPlate').value = car.plate_number;
-            document.getElementById('carModel').value = car.model || '';
-            document.getElementById('carYear').value = car.year || '';
-            document.getElementById('carVIN').value = car.vin || '';
-            
-            // Format VIN display
-            const vinDisplay = document.getElementById('vinDisplay');
-            if (car.vin) {
-                vinDisplay.textContent = `VIN: ${car.vin}`;
-                vinDisplay.style.display = 'block';
-            }
-            
-            // Set next oil change date
-            if (car.next_oil_change) {
-                // Convert date to YYYY-MM-DD format
+        // Set next oil change date
+        if (car.next_oil_change) {
+            // Convert date to YYYY-MM-DD format
+            try {
                 const date = new Date(car.next_oil_change);
                 const formattedDate = date.toISOString().split('T')[0];
                 document.getElementById('nextOilChange').value = formattedDate;
-            } else {
+            } catch (e) {
+                console.log('Date parsing error:', e);
                 document.getElementById('nextOilChange').value = '';
             }
-            
-            // Load owner information
-            await loadOwnerInformation(car.owner_phone);
-            
-            // Switch to edit section
-            document.getElementById('searchSection').classList.remove('active-section');
-            document.getElementById('editSection').classList.add('active-section');
-            
-            showAlert(`Loaded car: ${car.plate_number}`, 'success');
+        } else {
+            document.getElementById('nextOilChange').value = '';
         }
         
-        async function loadOwnerInformation(ownerPhone) {
-            if (!ownerPhone) {
-                document.getElementById('currentOwnerInfo').innerHTML = 
-                    '<div class="no-owner">No owner assigned to this car</div>';
-                return;
-            }
+        // Load owner information
+        await loadOwnerInformation(car.owner_phone);
+    }
+    
+    function setSearchMethod(method) {
+        currentSearchMethod = method;
+        
+        // Update button styles
+        document.getElementById('plateMethodBtn').classList.toggle('active', method === 'plate');
+        document.getElementById('vinMethodBtn').classList.toggle('active', method === 'vin');
+        
+        // Show/hide search inputs
+        document.getElementById('plateSearch').style.display = method === 'plate' ? 'flex' : 'none';
+        document.getElementById('vinSearch').style.display = method === 'vin' ? 'flex' : 'none';
+        
+        // Clear inputs and results
+        document.getElementById('plateSearchInput').value = '';
+        document.getElementById('vinSearchInput').value = '';
+        document.getElementById('searchResults').innerHTML = '';
+        
+        // Remove validation classes
+        document.getElementById('plateSearchInput').classList.remove('input-valid', 'input-invalid');
+        document.getElementById('vinSearchInput').classList.remove('input-valid', 'input-invalid');
+        
+        // Hide "not found" section
+        document.getElementById('carNotFoundSection').style.display = 'none';
+        
+        // Set focus
+        if (method === 'plate') {
+            document.getElementById('plateSearchInput').focus();
+        } else {
+            document.getElementById('vinSearchInput').focus();
+        }
+    }
+    
+    function showAlert(message, type = 'success') {
+        const alert = document.getElementById('alert');
+        alert.textContent = message;
+        alert.className = `alert alert-${type}`;
+        alert.style.display = 'block';
+        
+        setTimeout(() => {
+            alert.style.display = 'none';
+        }, 5000);
+    }
+    
+    function showLoading(text = 'Loading...') {
+        document.getElementById('loadingText').textContent = text;
+        document.getElementById('loading').style.display = 'block';
+    }
+    
+    function hideLoading() {
+        document.getElementById('loading').style.display = 'none';
+    }
+    
+    async function searchByPlate() {
+        const plateInput = document.getElementById('plateSearchInput');
+        let plate = formatLicensePlate(plateInput.value);
+        
+        // Apply final formatting
+        plateInput.value = plate;
+        
+        if (!plate) {
+            showAlert('Please enter a license plate', 'warning');
+            plateInput.focus();
+            return;
+        }
+        
+        // Validate format
+        if (!validateLicensePlate(plate)) {
+            showAlert('License plate must be 1 letter followed by 1-6 digits (e.g., A123, B4567)', 'warning');
+            plateInput.focus();
+            return;
+        }
+        
+        lastSearchedPlate = plate; // Store the plate
+        showLoading('Searching for car...');
+        
+        try {
+            const response = await fetch(`/mechanic/api/car/${encodeURIComponent(plate)}`);
+            const data = await response.json();
             
-            try {
-                const response = await fetch(`/mechanic/api/check-owner/${encodeURIComponent(ownerPhone)}`);
-                const data = await response.json();
+            if (data.success && data.car_info) {
+                // Hide "not found" section
+                document.getElementById('carNotFoundSection').style.display = 'none';
                 
-                if (data.success && data.exists) {
-                    const owner = data.owner;
-                    document.getElementById('currentOwnerName').textContent = owner.Owner_Name || 'Unknown';
-                    document.getElementById('currentOwnerPhone').textContent = ownerPhone;
-                    document.getElementById('currentOwnerEmail').textContent = owner.Owner_Email || 'No email';
-                    document.getElementById('currentOwnerId').textContent = owner.Owner_ID;
+                document.getElementById('searchSection').classList.remove('active-section');
+                document.getElementById('editSection').classList.add('active-section');
+                await displayCarForEdit(data.car_info);
+                document.getElementById('directLoadHeader').classList.remove('show');
+                showAlert(`✅ Found vehicle: ${plate}`, 'success');
+            } else {
+                // Car not found - show "not found" section
+                document.getElementById('carNotFoundSection').style.display = 'block';
+                document.getElementById('searchResults').innerHTML = '';
+                showAlert(data.message || 'Car not found', 'error');
+            }
+        } catch (error) {
+            showAlert('Error searching car: ' + error.message, 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    async function searchByVIN() {
+        const vinInput = document.getElementById('vinSearchInput');
+        let vin = vinInput.value.trim().toUpperCase();
+        
+        // Remove I, O, Q as they're not allowed in VIN
+        vin = vin.replace(/[IOQ]/g, '');
+        vinInput.value = vin;
+        
+        if (!vin) {
+            showAlert('Please enter a VIN number', 'warning');
+            vinInput.focus();
+            return;
+        }
+        
+        // Validate VIN format
+        if (!validateVIN(vin) && vin.length === 17) {
+            showAlert('VIN contains invalid characters. I, O, Q are not allowed in VIN numbers.', 'warning');
+            return;
+        }
+        
+        showLoading('Searching by VIN...');
+        
+        try {
+            const response = await fetch(`/mechanic/api/search-by-vin?vin=${encodeURIComponent(vin)}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                if (data.matches_found === 1 && data.car_info) {
+                    // Hide "not found" section
+                    document.getElementById('carNotFoundSection').style.display = 'none';
                     
-                    // Populate selected owner dropdown
-                    const select = document.getElementById('selectedOwner');
-                    select.innerHTML = `
-                        <option value="">-- Select Owner --</option>
-                        <option value="${owner.Owner_ID}" selected>${owner.Owner_Name} (Current)</option>
-                    `;
+                    document.getElementById('searchSection').classList.remove('active-section');
+                    document.getElementById('editSection').classList.add('active-section');
+                    await displayCarForEdit(data.car_info);
+                    document.getElementById('directLoadHeader').classList.remove('show');
+                    showAlert(`✅ Found vehicle with VIN`, 'success');
+                } else if (data.matches_found > 1 && data.cars) {
+                    // Hide "not found" section
+                    document.getElementById('carNotFoundSection').style.display = 'none';
+                    
+                    displayMultipleResults(data.cars, 'VIN');
                 } else {
-                    document.getElementById('currentOwnerInfo').innerHTML = 
-                        '<div class="no-owner">Owner information not found</div>';
+                    // Car not found - show "not found" section
+                    document.getElementById('carNotFoundSection').style.display = 'block';
+                    showAlert('No cars found with this VIN', 'error');
                 }
-            } catch (error) {
-                console.error('Error loading owner info:', error);
-                document.getElementById('currentOwnerInfo').innerHTML = 
-                    '<div class="no-owner">Error loading owner information</div>';
+            } else {
+                // Car not found - show "not found" section
+                document.getElementById('carNotFoundSection').style.display = 'block';
+                showAlert(data.message || 'No cars found', 'error');
             }
+        } catch (error) {
+            showAlert('Error searching VIN: ' + error.message, 'error');
+        } finally {
+            hideLoading();
         }
+    }
+    
+    function displayMultipleResults(cars, searchType) {
+        const resultsContainer = document.getElementById('searchResults');
         
-        function toggleOwnerChange() {
-            const changeOwner = document.getElementById('changeOwner').checked;
-            document.getElementById('ownerChangeSection').style.display = changeOwner ? 'block' : 'none';
-            
-            if (!changeOwner) {
-                document.getElementById('selectedOwner').value = '';
-                document.getElementById('selectedOwnerInfo').innerHTML = '';
-            }
-        }
+        let html = `<div style="padding: 10px; color: #666; font-size: 14px;">
+            Found ${cars.length} cars with matching ${searchType}. Select one:</div>`;
         
-        async function searchOwners() {
-            const searchTerm = document.getElementById('newOwnerSearch').value.trim();
+        cars.forEach(car => {
+            html += `
+                <div class="result-item" onclick="selectCarFromResults('${car.plate_number}')">
+                    <div class="car-plate">${car.plate_number}</div>
+                    <div class="car-details">
+                        <strong>Model:</strong> ${car.model || 'Unknown'}<br>
+                        <strong>Year:</strong> ${car.year || 'Unknown'}<br>
+                        <strong>VIN:</strong> ${car.vin}<br>
+                        <strong>Owner:</strong> ${car.owner_name || 'Unknown'}
+                    </div>
+                </div>
+            `;
+        });
+        
+        resultsContainer.innerHTML = html;
+    }
+    
+    async function selectCarFromResults(plateNumber) {
+        showLoading('Loading car details...');
+        
+        try {
+            const response = await fetch(`/mechanic/api/car/${encodeURIComponent(plateNumber)}`);
+            const data = await response.json();
             
-            if (searchTerm.length < 2) {
-                showAlert('Please enter at least 2 characters to search', 'warning');
-                return;
-            }
-            
-            showLoading('Searching owners...');
-            
-            try {
-                const response = await fetch(`/mechanic/api/search-owners?q=${encodeURIComponent(searchTerm)}`);
-                const data = await response.json();
+            if (data.success && data.car_info) {
+                // Hide "not found" section
+                document.getElementById('carNotFoundSection').style.display = 'none';
                 
-                if (data.success) {
-                    populateOwnerDropdown(data.owners);
-                } else {
-                    showAlert(data.message, 'error');
-                }
-            } catch (error) {
-                showAlert('Error searching owners: ' + error.message, 'error');
-            } finally {
-                hideLoading();
+                document.getElementById('searchSection').classList.remove('active-section');
+                document.getElementById('editSection').classList.add('active-section');
+                await displayCarForEdit(data.car_info);
+                document.getElementById('directLoadHeader').classList.remove('show');
+                showAlert(`✅ Loaded vehicle: ${plateNumber}`, 'success');
+            } else {
+                showAlert('Error loading car details', 'error');
+            }
+        } catch (error) {
+            showAlert('Error: ' + error.message, 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    function redirectToAddCar() {
+        // Get the plate that was searched
+        const searchInput = document.getElementById('plateSearchInput');
+        let plate = searchInput ? searchInput.value.trim() : lastSearchedPlate;
+        
+        // Format the plate properly
+        let formattedPlate = '';
+        if (plate && plate.trim() !== '') {
+            formattedPlate = formatLicensePlate(plate);
+        }
+        
+        // Validate the plate
+        if (!formattedPlate || !validateLicensePlate(formattedPlate)) {
+            showAlert('Please enter a valid license plate (1 letter + 1-6 digits) before adding new car', 'warning');
+            if (searchInput) searchInput.focus();
+            return;
+        }
+        
+        console.log(`Redirecting to add car with plate: ${formattedPlate}`);
+        
+        // Store in multiple locations for redundancy
+        try {
+            // Store in sessionStorage
+            sessionStorage.setItem('addCarPlate', formattedPlate);
+            // Store in localStorage as backup
+            localStorage.setItem('addCarPlate', formattedPlate);
+        } catch (error) {
+            console.log('Storage error, continuing with URL only:', error);
+        }
+        
+        // Redirect with URL parameter
+        window.location.href = `/mechanic/addCar.html?plate=${encodeURIComponent(formattedPlate)}`;
+    }
+    
+    function showSearchAgain() {
+        // Hide the "not found" section
+        document.getElementById('carNotFoundSection').style.display = 'none';
+        
+        // Clear the search input
+        document.getElementById('plateSearchInput').value = '';
+        document.getElementById('vinSearchInput').value = '';
+        
+        // Remove validation classes
+        document.getElementById('plateSearchInput').classList.remove('input-valid', 'input-invalid');
+        document.getElementById('vinSearchInput').classList.remove('input-valid', 'input-invalid');
+        
+        // Set focus back to search
+        if (currentSearchMethod === 'plate') {
+            document.getElementById('plateSearchInput').focus();
+        } else {
+            document.getElementById('vinSearchInput').focus();
+        }
+    }
+    
+    async function loadOwnerInformation(ownerPhone) {
+        if (!ownerPhone) {
+            document.getElementById('currentOwnerInfo').innerHTML = 
+                '<div class="no-owner">No owner assigned to this car</div>';
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/mechanic/api/check-owner/${encodeURIComponent(ownerPhone)}`);
+            const data = await response.json();
+            
+            if (data.success && data.exists && data.owner) {
+                const owner = data.owner;
+                document.getElementById('currentOwnerName').textContent = owner.Owner_Name || 'Unknown';
+                document.getElementById('currentOwnerPhone').textContent = ownerPhone;
+                document.getElementById('currentOwnerEmail').textContent = owner.Owner_Email || 'No email';
+                document.getElementById('currentOwnerId').textContent = owner.Owner_ID;
+                
+                // Populate selected owner dropdown
+                const select = document.getElementById('selectedOwner');
+                select.innerHTML = `
+                    <option value="">-- Select Owner --</option>
+                    <option value="${owner.Owner_ID}" selected>${owner.Owner_Name} (Current)</option>
+                `;
+            } else {
+                document.getElementById('currentOwnerInfo').innerHTML = 
+                    '<div class="no-owner">Owner information not found</div>';
+            }
+        } catch (error) {
+            console.error('Error loading owner info:', error);
+            document.getElementById('currentOwnerInfo').innerHTML = 
+                '<div class="no-owner">Error loading owner information</div>';
+        }
+    }
+    
+    function toggleOwnerChange() {
+        const changeOwner = document.getElementById('changeOwner').checked;
+        document.getElementById('ownerChangeSection').style.display = changeOwner ? 'block' : 'none';
+        
+        if (!changeOwner) {
+            document.getElementById('selectedOwner').value = '';
+            document.getElementById('selectedOwnerInfo').innerHTML = '';
+        }
+    }
+    
+    async function searchOwners() {
+        const searchTerm = document.getElementById('newOwnerSearch').value.trim();
+        
+        if (searchTerm.length < 2) {
+            showAlert('Please enter at least 2 characters to search', 'warning');
+            return;
+        }
+        
+        showLoading('Searching owners...');
+        
+        try {
+            const response = await fetch(`/mechanic/api/search-owners?q=${encodeURIComponent(searchTerm)}`);
+            const data = await response.json();
+            
+            if (data.success && data.owners) {
+                populateOwnerDropdown(data.owners);
+            } else {
+                showAlert(data.message || 'No owners found', 'error');
+            }
+        } catch (error) {
+            showAlert('Error searching owners: ' + error.message, 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    function populateOwnerDropdown(owners) {
+        const select = document.getElementById('selectedOwner');
+        const currentHtml = select.options[0] ? select.options[0].outerHTML : '<option value="">-- Select Owner --</option>';
+        
+        select.innerHTML = currentHtml;
+        
+        if (owners.length === 0) {
+            select.innerHTML += '<option value="" disabled>No owners found</option>';
+            return;
+        }
+        
+        owners.forEach(owner => {
+            const option = document.createElement('option');
+            option.value = owner.Owner_ID;
+            option.textContent = `${owner.Owner_Name} (${owner.PhoneNUMB})`;
+            select.appendChild(option);
+        });
+        
+        showAlert(`Found ${owners.length} owner(s)`, 'success');
+    }
+    
+    function goBackToSearch() {
+        // Hide direct load header if shown
+        document.getElementById('directLoadHeader').classList.remove('show');
+        
+        document.getElementById('searchSection').classList.add('active-section');
+        document.getElementById('editSection').classList.remove('active-section');
+        
+        // Hide "not found" section
+        document.getElementById('carNotFoundSection').style.display = 'none';
+        
+        // Clear form
+        document.getElementById('carForm').reset();
+        document.getElementById('vinDisplay').style.display = 'none';
+        document.getElementById('changeOwner').checked = false;
+        document.getElementById('ownerChangeSection').style.display = 'none';
+        document.getElementById('selectedOwner').innerHTML = '<option value="">-- Select Owner --</option>';
+        document.getElementById('selectedOwnerInfo').innerHTML = '';
+        
+        // Remove validation classes
+        document.getElementById('plateSearchInput').classList.remove('input-valid', 'input-invalid');
+        document.getElementById('vinSearchInput').classList.remove('input-valid', 'input-invalid');
+        
+        // Set focus back to search
+        if (currentSearchMethod === 'plate') {
+            document.getElementById('plateSearchInput').focus();
+        } else {
+            document.getElementById('vinSearchInput').focus();
+        }
+    }
+    
+    function goBackAppropriately() {
+        // Check if we should go back to after-service form
+        if (cameFromAfterServiceForm && document.referrer.includes('after-service-form')) {
+            window.location.href = '/mechanic/after-service-form';
+        } else if (document.referrer && document.referrer.includes('addCar.html')) {
+            // If we came from add-car, go back to dashboard
+            window.location.href = '/mechanic/dashboard';
+        } else {
+            window.history.back();
+        }
+    }
+    
+    document.getElementById('carForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Get form values
+        const originalPlate = document.getElementById('originalCarPlate').value;
+        const model = document.getElementById('carModel').value.trim();
+        const year = parseInt(document.getElementById('carYear').value);
+        const vin = document.getElementById('carVIN').value.trim().toUpperCase();
+        const nextOilChange = document.getElementById('nextOilChange').value;
+        const changeOwner = document.getElementById('changeOwner').checked;
+        const newOwnerId = changeOwner ? document.getElementById('selectedOwner').value : null;
+        
+        // Validation
+        if (!model) {
+            showAlert('Car model is required', 'error');
+            return;
+        }
+        
+        if (!year || year < 1900 || year > new Date().getFullYear() + 1) {
+            showAlert('Please enter a valid manufacturing year', 'error');
+            return;
+        }
+        
+        // VIN validation
+        if (!validateVIN(vin)) {
+            showAlert('VIN must be exactly 17 alphanumeric characters (excluding I, O, Q)', 'error');
+            return;
+        }
+        
+        if (nextOilChange) {
+            const oilDate = new Date(nextOilChange);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            if (oilDate < today) {
+                showAlert('Next oil change date cannot be in the past', 'error');
+                return;
             }
         }
         
-        function populateOwnerDropdown(owners) {
-            const select = document.getElementById('selectedOwner');
-            const currentHtml = select.options[0] ? select.options[0].outerHTML : '<option value="">-- Select Owner --</option>';
+        if (changeOwner && !newOwnerId) {
+            showAlert('Please select a new owner', 'error');
+            return;
+        }
+        
+        showLoading('Updating car information...');
+        
+        try {
+            const updateData = {
+                model: model,
+                year: year,
+                vin: vin,
+                next_oil_change: nextOilChange || null,
+                owner_id: changeOwner ? parseInt(newOwnerId) : null
+            };
             
-            select.innerHTML = currentHtml;
-            
-            if (owners.length === 0) {
-                select.innerHTML += '<option value="" disabled>No owners found</option>';
-                return;
-            }
-            
-            owners.forEach(owner => {
-                const option = document.createElement('option');
-                option.value = owner.Owner_ID;
-                option.textContent = `${owner.Owner_Name} (${owner.PhoneNUMB})`;
-                select.appendChild(option);
+            const response = await fetch(`/mechanic/api/car/${encodeURIComponent(originalPlate)}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updateData)
             });
             
-            showAlert(`Found ${owners.length} owner(s)`, 'success');
+            const data = await response.json();
+            
+            if (data.success) {
+                showAlert(data.message, 'success');
+                
+                // Refresh car data
+                setTimeout(async () => {
+                    const carResponse = await fetch(`/mechanic/api/car/${encodeURIComponent(originalPlate)}`);
+                    const carData = await carResponse.json();
+                    
+                    if (carData.success) {
+                        await displayCarForEdit(carData.car_info);
+                    }
+                }, 1000);
+                
+            } else {
+                showAlert(data.message, 'error');
+            }
+        } catch (error) {
+            showAlert('Error updating car: ' + error.message, 'error');
+        } finally {
+            hideLoading();
+        }
+    });
+    
+    // Add event listeners for search inputs
+    document.getElementById('plateSearchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchByPlate();
+        }
+    });
+    
+    document.getElementById('vinSearchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchByVIN();
+        }
+    });
+    
+    // License Plate auto-format and validation
+    document.getElementById('plateSearchInput').addEventListener('input', function(e) {
+        const originalValue = e.target.value;
+        const formatted = formatLicensePlate(originalValue);
+        
+        // Only update if different to avoid cursor jumping
+        if (formatted !== originalValue) {
+            e.target.value = formatted;
         }
         
-        function goBackToSearch() {
-            document.getElementById('searchSection').classList.add('active-section');
-            document.getElementById('editSection').classList.remove('active-section');
-            
-            // Clear form
-            document.getElementById('carForm').reset();
-            document.getElementById('vinDisplay').style.display = 'none';
-            document.getElementById('changeOwner').checked = false;
-            document.getElementById('ownerChangeSection').style.display = 'none';
-            document.getElementById('selectedOwner').innerHTML = '<option value="">-- Select Owner --</option>';
-            document.getElementById('selectedOwnerInfo').innerHTML = '';
-            
-            // Set focus back to search
-            if (currentSearchMethod === 'plate') {
-                document.getElementById('plateSearchInput').focus();
-            } else {
-                document.getElementById('vinSearchInput').focus();
-            }
+        // Add visual validation feedback
+        if (validateLicensePlate(formatted)) {
+            e.target.classList.remove('input-invalid');
+            e.target.classList.add('input-valid');
+        } else if (formatted.length > 0) {
+            e.target.classList.remove('input-valid');
+            e.target.classList.add('input-invalid');
+        } else {
+            e.target.classList.remove('input-valid', 'input-invalid');
         }
+    });
+    
+    // VIN auto-format and validation
+    document.getElementById('carVIN').addEventListener('input', function(e) {
+        const vin = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
         
-        document.getElementById('carForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            // Get form values
-            const originalPlate = document.getElementById('originalCarPlate').value;
-            const model = document.getElementById('carModel').value.trim();
-            const year = parseInt(document.getElementById('carYear').value);
-            const vin = document.getElementById('carVIN').value.trim().toUpperCase();
-            const nextOilChange = document.getElementById('nextOilChange').value;
-            const changeOwner = document.getElementById('changeOwner').checked;
-            const newOwnerId = changeOwner ? document.getElementById('selectedOwner').value : null;
-            
-            // Validation
-            if (!model) {
-                showAlert('Car model is required', 'error');
-                return;
-            }
-            
-            if (!year || year < 1900 || year > new Date().getFullYear() + 1) {
-                showAlert('Please enter a valid manufacturing year', 'error');
-                return;
-            }
-            
-            if (!vin || vin.length !== 17) {
-                showAlert('VIN must be exactly 17 characters', 'error');
-                return;
-            }
-            
-            if (nextOilChange) {
-                const oilDate = new Date(nextOilChange);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                
-                if (oilDate < today) {
-                    showAlert('Next oil change date cannot be in the past', 'error');
-                    return;
-                }
-            }
-            
-            if (changeOwner && !newOwnerId) {
-                showAlert('Please select a new owner', 'error');
-                return;
-            }
-            
-            showLoading('Updating car information...');
-            
-            try {
-                const updateData = {
-                    model: model,
-                    year: year,
-                    vin: vin,
-                    next_oil_change: nextOilChange || null,
-                    owner_id: changeOwner ? parseInt(newOwnerId) : null
-                };
-                
-                const response = await fetch(`/mechanic/api/car/${encodeURIComponent(originalPlate)}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(updateData)
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showAlert(data.message, 'success');
-                    
-                    // Refresh car data
-                    setTimeout(async () => {
-                        const carResponse = await fetch(`/mechanic/api/car/${encodeURIComponent(originalPlate)}`);
-                        const carData = await carResponse.json();
-                        
-                        if (carData.success) {
-                            await displayCarForEdit(carData.car_info);
-                        }
-                    }, 1000);
-                    
-                } else {
-                    showAlert(data.message, 'error');
-                }
-            } catch (error) {
-                showAlert('Error updating car: ' + error.message, 'error');
-            } finally {
-                hideLoading();
-            }
-        });
+        // Remove I, O, Q from VIN as they're not allowed
+        const cleanedVin = vin.replace(/[IOQ]/g, '');
         
-        // Add event listeners for search inputs
-        document.getElementById('plateSearchInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                searchByPlate();
-            }
-        });
+        // Limit to 17 characters
+        e.target.value = cleanedVin.slice(0, 17);
         
-        document.getElementById('vinSearchInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                searchByVIN();
-            }
-        });
-        
-        // VIN auto-format
-        document.getElementById('carVIN').addEventListener('input', function(e) {
-            const vin = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-            e.target.value = vin;
+        const vinDisplay = document.getElementById('vinDisplay');
+        if (cleanedVin.length > 0) {
+            vinDisplay.textContent = `VIN: ${cleanedVin}`;
+            vinDisplay.style.display = 'block';
             
-            const vinDisplay = document.getElementById('vinDisplay');
-            if (vin.length > 0) {
-                vinDisplay.textContent = `VIN: ${vin}`;
-                vinDisplay.style.display = 'block';
+            // Add visual feedback for validation
+            if (cleanedVin.length === 17 && validateVIN(cleanedVin)) {
+                vinDisplay.style.borderLeft = '4px solid #27ae60';
+                e.target.classList.remove('input-invalid');
+                e.target.classList.add('input-valid');
             } else {
-                vinDisplay.style.display = 'none';
+                vinDisplay.style.borderLeft = '4px solid #e74c3c';
+                e.target.classList.remove('input-valid');
+                e.target.classList.add('input-invalid');
             }
-        });
+        } else {
+            vinDisplay.style.display = 'none';
+            e.target.classList.remove('input-valid', 'input-invalid');
+        }
+    });
+    
+    // Show selected owner info
+    document.getElementById('selectedOwner').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const infoDiv = document.getElementById('selectedOwnerInfo');
         
-        // Show selected owner info
-        document.getElementById('selectedOwner').addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            const infoDiv = document.getElementById('selectedOwnerInfo');
-            
-            if (selectedOption.value) {
-                infoDiv.innerHTML = `Selected: ${selectedOption.textContent}`;
-            } else {
-                infoDiv.innerHTML = '';
-            }
-        });
-    </script>
+        if (selectedOption.value) {
+            infoDiv.innerHTML = `Selected: ${selectedOption.textContent}`;
+        } else {
+            infoDiv.innerHTML = '';
+        }
+    });
+    
+    // VIN search input validation
+    document.getElementById('vinSearchInput').addEventListener('input', function(e) {
+        const vin = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        
+        // Remove I, O, Q from VIN as they're not allowed
+        const cleanedVin = vin.replace(/[IOQ]/g, '');
+        
+        // Limit to 17 characters
+        e.target.value = cleanedVin.slice(0, 17);
+        
+        // Add visual validation feedback
+        if (cleanedVin.length === 17 && validateVIN(cleanedVin)) {
+            e.target.classList.remove('input-invalid');
+            e.target.classList.add('input-valid');
+        } else if (cleanedVin.length > 0) {
+            e.target.classList.remove('input-valid');
+            e.target.classList.add('input-invalid');
+        } else {
+            e.target.classList.remove('input-valid', 'input-invalid');
+        }
+    });
+    
+    // Clean up sessionStorage when leaving page
+    window.addEventListener('beforeunload', function() {
+        // Only clear editCarPlate, keep addCarPlate for redirect
+        sessionStorage.removeItem('editCarPlate');
+    });
+</script>
 </body>
 </html>

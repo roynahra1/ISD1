@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ISZ - Sign Up</title>
+    <title>ISZ - Complete Sign Up</title>
     <style>
         * { box-sizing: border-box; }
         html, body {
@@ -30,7 +30,7 @@
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 400px;
+            max-width: 500px;
         }
 
         h2 {
@@ -38,6 +38,14 @@
             text-align: center;
             color: #3498db;
             font-size: 24px;
+        }
+
+        .section-title {
+            color: #2ecc71;
+            font-size: 18px;
+            margin: 25px 0 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #2ecc71;
         }
 
         .input-group {
@@ -70,6 +78,21 @@
 
         .input-group input::placeholder {
             color: rgba(255, 255, 255, 0.5);
+        }
+
+        .info-box {
+            background: rgba(52, 152, 219, 0.1);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            border-left: 3px solid #3498db;
+        }
+
+        .info-box.success {
+            background: rgba(46, 204, 113, 0.1);
+            border-left-color: #2ecc71;
         }
 
         button {
@@ -118,6 +141,13 @@
             text-decoration: underline;
         }
 
+        .field-hint {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            margin-top: 5px;
+            display: block;
+        }
+
         @media (max-width: 480px) {
             .signup-card {
                 padding: 20px;
@@ -128,32 +158,30 @@
 <body>
     <div class="container">
         <div class="signup-card">
-            <h2>🔧 ISZ Client Sign Up</h2>
+            <h2>🔧 Complete Sign Up</h2>
+            
+            <div class="info-box">
+                <strong>✅ One-Step Registration:</strong> Create your account and owner profile at the same time.
+            </div>
+            
             <form id="signupForm" onsubmit="return false;">
+                <!-- Account Information -->
+                <div class="section-title">🔐 Account Information</div>
+                
                 <div class="input-group">
-                    <label for="username">Username</label>
+                    <label for="username">Username *</label>
                     <input 
                         type="text" 
                         id="username" 
-                        placeholder="Enter username"
+                        placeholder="Choose a username"
                         autocomplete="username"
                         required
                     >
+                    <span class="field-hint">This will be your login username</span>
                 </div>
                 
                 <div class="input-group">
-                    <label for="email">Email</label>
-                    <input 
-                        type="email" 
-                        id="email" 
-                        placeholder="Enter email"
-                        autocomplete="email"
-                        required
-                    >
-                </div>
-
-                <div class="input-group">
-                    <label for="password">Password</label>
+                    <label for="password">Password *</label>
                     <input 
                         type="password" 
                         id="password" 
@@ -161,10 +189,11 @@
                         autocomplete="new-password"
                         required
                     >
+                    <span class="field-hint">Minimum 6 characters</span>
                 </div>
 
                 <div class="input-group">
-                    <label for="confirm-password">Confirm Password</label>
+                    <label for="confirm-password">Confirm Password *</label>
                     <input 
                         type="password" 
                         id="confirm-password" 
@@ -174,7 +203,46 @@
                     >
                 </div>
 
-                <button type="submit" onclick="handleSignup()">Create Account</button>
+                <!-- Owner Information -->
+                <div class="section-title">👤 Owner Information</div>
+                
+                <div class="input-group">
+                    <label for="owner_name">Full Name *</label>
+                    <input 
+                        type="text" 
+                        id="owner_name" 
+                        placeholder="Enter your full name"
+                        autocomplete="name"
+                        required
+                    >
+                    <span class="field-hint">As it appears on your ID</span>
+                </div>
+
+                <div class="input-group">
+                    <label for="email">Email Address *</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        placeholder="your@email.com"
+                        autocomplete="email"
+                        required
+                    >
+                    <span class="field-hint">Used for account recovery and notifications</span>
+                </div>
+
+                <div class="input-group">
+                    <label for="phone_number">Phone Number *</label>
+                    <input 
+                        type="tel" 
+                        id="phone_number" 
+                        placeholder="+96170123456"
+                        autocomplete="tel"
+                        required
+                    >
+                    <span class="field-hint">Used for account linking and SMS notifications</span>
+                </div>
+
+                <button type="submit" onclick="handleSignup()">Create Account & Owner Profile</button>
                 <div class="login-link">
                     Already have an account? <a href="/login.html">Log In</a>
                 </div>
@@ -183,20 +251,22 @@
         </div>
     </div>
 
-  // Update the script section
 <script>
     async function handleSignup() {
         const msg = document.getElementById('msg');
         const username = document.getElementById('username').value.trim();
-        const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('confirm-password').value;
+        const ownerName = document.getElementById('owner_name').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const phoneNumber = document.getElementById('phone_number').value.trim();
         const submitBtn = document.querySelector('#signupForm button[type="submit"]');
 
         msg.textContent = '';
         msg.style.color = '#e74c3c';
 
-        if (!username || !email || !password || !confirmPassword) {
+        // Validate all fields are required
+        if (!username || !password || !confirmPassword || !ownerName || !email || !phoneNumber) {
             msg.textContent = 'All fields are required';
             return;
         }
@@ -211,6 +281,16 @@
             return;
         }
 
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            msg.textContent = "Please enter a valid email address";
+            return;
+        }
+
+        if (!/^[\d\s\-\+\(\)]{8,20}$/.test(phoneNumber)) {
+            msg.textContent = "Please enter a valid phone number (8-20 digits)";
+            return;
+        }
+
         submitBtn.disabled = true;
         submitBtn.textContent = 'Creating account...';
 
@@ -222,7 +302,13 @@
                     'Accept': 'application/json'
                 },
                 credentials: 'include',
-                body: JSON.stringify({ username, email, password })
+                body: JSON.stringify({ 
+                    username, 
+                    password,
+                    owner_name: ownerName,
+                    email,
+                    phone_number: phoneNumber
+                })
             });
 
             const data = await response.json();
@@ -230,26 +316,38 @@
 
             if (data.status === 'success') {
                 msg.style.color = '#2ecc71';
-                msg.textContent = 'Account created successfully! Redirecting...';
-                // Clear form
-                document.getElementById('username').value = '';
-                document.getElementById('email').value = '';
-                document.getElementById('password').value = '';
-                document.getElementById('confirm-password').value = '';
+                msg.textContent = `✅ Success! Account and owner profile created. Owner ID: ${data.owner_id}. Auto-logging in...`;
                 
-               
-                    window.location.href = '/login.html';
+                // Auto-login after successful signup
+                setTimeout(async () => {
+                    try {
+                        const loginResponse = await fetch('/login', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ username, password })
+                        });
+                        
+                        const loginData = await loginResponse.json();
+                        if (loginData.status === 'success') {
+                            window.location.href = '/appointment.html';
+                        } else {
+                            window.location.href = '/login.html';
+                        }
+                    } catch (error) {
+                        window.location.href = '/login.html';
+                    }
+                }, 1500);
                 
             } else {
                 msg.textContent = data.message || 'Error creating account';
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Create Account';
+                submitBtn.textContent = 'Create Account & Owner Profile';
             }
         } catch (error) {
             console.error('Connection error:', error);
             msg.textContent = 'Server connection failed. Please check if the server is running.';
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Account';
+            submitBtn.textContent = 'Create Account & Owner Profile';
         }
     }
 
@@ -264,7 +362,5 @@
         }
     });
 </script>
-
-    
 </body>
 </html>

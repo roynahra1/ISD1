@@ -1,0 +1,43 @@
+<div class="topbar">
+  <button class="back-btn" onclick="goBack()">← Back</button>
+  <div class="spacer"></div>
+  <button class="logout-btn" onclick="logout()">Logout</button>
+</div>
+<style>
+.topbar{display:flex;align-items:center;gap:8px;padding:10px;background:rgba(0,0,0,0.2);border-bottom:1px solid rgba(255,255,255,0.04);}
+.topbar .back-btn, .topbar .logout-btn{background:#3498db;border:none;padding:8px 12px;border-radius:6px;color:#fff;cursor:pointer}
+.topbar .logout-btn{background:#e74c3c}
+.topbar .back-btn:hover{background:#2980b9}
+.topbar .logout-btn:hover{background:#c0392b}
+.topbar .spacer{flex:1}
+</style>
+<script>
+function goBack(){
+  if(document.referrer){
+    history.back();
+  } else {
+    // fallback to homepage
+    window.location.href = '/';
+  }
+}
+async function logout(){
+  try{
+    // Try regular logout first
+    const res = await fetch('/logout',{method: 'POST', credentials: 'include'});
+    if(res.ok){
+      window.location.href = '/login.html';
+      return;
+    }
+  }catch(e){/*ignore*/}
+  try{
+    // Try mechanic logout
+    const res2 = await fetch('/mechanic/logout',{method:'POST', credentials:'include'});
+    if(res2.ok){
+      window.location.href = '/mechanic/login.html';
+      return;
+    }
+  }catch(e){/*ignore*/}
+  // Fallback: navigate to login
+  window.location.href = '/login.html';
+}
+</script>

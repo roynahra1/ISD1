@@ -356,51 +356,9 @@
             }
         }
 
-        /* Enhanced Features */
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #e74c3c;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 0.7em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
+        /* Minimal decorative CSS: removed animated badges and spinners for clarity */
         .nav-links li {
             position: relative;
-        }
-
-        /* Pulse animation for urgent jobs */
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        .stat-card.danger {
-            animation: pulse 2s infinite;
-        }
-
-        /* Loading animation */
-        .loading-spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
     </style>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -410,8 +368,7 @@
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="logo">
-                <h1>🔧 AutoService Pro</h1>
-                <small>Mechanic Portal</small>
+                <h1>🔧 Mechanic Portal</h1>
             </div>
             
             <ul class="nav-links">
@@ -501,7 +458,7 @@
                         <span>View Appointments</span>
                     </a>
                     
-                    <a href="/car/service-history" class="action-btn">
+                    <a href="/mechanic/service-history" class="action-btn">
                         <i class="fas fa-history"></i>
                         <span>Service History</span>
                     </a>
@@ -527,11 +484,10 @@
        <script>
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Initializing mechanic dashboard...');
-            updateCurrentTime();
-            updateUserInfo();
-            loadDashboardData();
-            startRealTimeUpdates();
+                updateCurrentTime();
+                updateUserInfo();
+                loadDashboardData();
+                startRealTimeUpdates();
         });
 
         // Update current time
@@ -550,7 +506,6 @@
 
         // Load dashboard data
         async function loadDashboardData() {
-            console.log('📊 Loading dashboard data...');
             
             try {
                 // Load stats
@@ -560,7 +515,7 @@
                 }
                 
                 const stats = await statsResponse.json();
-                console.log('📊 Stats response:', stats);
+                
                 
                 if (stats.success) {
                     document.getElementById('todayServices').textContent = stats.data.today_services || 0;
@@ -577,7 +532,7 @@
                 await loadRecentActivity();
 
             } catch (error) {
-                console.error('❌ Error loading dashboard data:', error);
+                console.error('Error loading dashboard data:', error);
                 showError('Failed to load dashboard data. Please refresh the page.');
             }
         }
@@ -591,7 +546,7 @@
                 }
                 
                 const activity = await activityResponse.json();
-                console.log('📋 Activity response:', activity);
+                
                 
                 const activityList = document.getElementById('activityList');
                 const activityLoading = document.getElementById('activityLoading');
@@ -612,7 +567,7 @@
                 }
                 
             } catch (error) {
-                console.error('❌ Error loading activities:', error);
+                console.error('Error loading activities:', error);
                 document.getElementById('activityLoading').style.display = 'none';
                 document.getElementById('activityError').style.display = 'block';
                 document.getElementById('activityError').textContent = 'Failed to load recent activities';
@@ -755,38 +710,7 @@
             }, 5000);
         }
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function(event) {
-            // Ctrl + D for dashboard refresh
-            if (event.ctrlKey && event.key === 'd') {
-                event.preventDefault();
-                loadDashboardData();
-                showSuccess('Dashboard refreshed!');
-            }
-            
-            // Ctrl + L for logout
-            if (event.ctrlKey && event.key === 'l') {
-                event.preventDefault();
-                logout();
-            }
-        });
-
-        // Show success message
-        function showSuccess(message) {
-            const successDiv = document.createElement('div');
-            successDiv.className = 'success-message';
-            successDiv.textContent = message;
-            successDiv.style.position = 'fixed';
-            successDiv.style.top = '20px';
-            successDiv.style.right = '20px';
-            successDiv.style.zIndex = '1000';
-            
-            document.body.appendChild(successDiv);
-            
-            setTimeout(() => {
-                successDiv.remove();
-            }, 3000);
-        }
+        // Keyboard shortcuts removed to keep UI simple and predictable
     </script>
 </body>
 </html>
