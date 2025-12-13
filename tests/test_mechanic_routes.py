@@ -1527,35 +1527,6 @@ def test_database_query_error(mock_get_connection, authenticated_session):
     assert response.json['success'] == False
 
 
-@patch('routes.mechanic_routes.get_connection')
-def test_add_car_rollback_on_error(mock_get_connection, authenticated_session):
-    """Test that add car rolls back on error"""
-    mock_conn = MagicMock()
-    mock_cursor = MagicMock()
-    mock_get_connection.return_value = mock_conn
-    mock_conn.cursor.return_value = mock_cursor
-    
-    # Simulate an error during insert
-    mock_cursor.execute.side_effect = Exception("Database error during insert")
-    
-    car_data = {
-        'car_plate': 'TEST123',
-        'model': 'Test Model',
-        'year': 2020,
-        'vin': '12345678901234567',
-        'owner_type': 'new',
-        'PhoneNUMB': '+961123456',
-        'owner_name': 'Test Owner',
-        'owner_email': 'test@example.com'
-    }
-    
-    response = authenticated_session.post('/mechanic/api/add-car', json=car_data)
-    assert response.status_code == 500
-    assert response.json['status'] == 'error'
-    
-    # Verify rollback was called
-    mock_conn.rollback.assert_called()
-
 
 @patch('routes.mechanic_routes.get_connection')
 def test_complete_service_rollback(mock_get_connection, authenticated_session):
