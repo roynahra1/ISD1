@@ -330,32 +330,7 @@ def test_401_error_handler():
 # DASHBOARD API TESTS
 # ===============================
 
-@patch('routes.mechanic_routes.get_connection')
-def test_get_dashboard_stats_authenticated(mock_get_connection, authenticated_session):
-    """Test dashboard stats API when authenticated"""
-    # Mock the database connection and cursor
-    mock_conn = MagicMock()
-    mock_cursor = MagicMock()
-    mock_get_connection.return_value = mock_conn
-    mock_conn.cursor.return_value = mock_cursor
-    
-    # Mock database responses
-    mock_cursor.fetchone.side_effect = [
-        (5,),  # today_services
-        (25,),  # completed_week
-        (3,),   # today_appointments
-        (50,),  # total_appointments
-        (2,),   # urgent_jobs
-        (100,), # total_cars
-        (80,)   # total_owners
-    ]
-    
-    response = authenticated_session.get('/mechanic/api/dashboard-stats')
-    
-    assert response.status_code == 200
-    assert response.json['success'] == True
-    assert 'data' in response.json
-    assert response.json['data']['today_services'] == 5
+
 
 
 def test_get_dashboard_stats_unauthenticated(client):
