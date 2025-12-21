@@ -89,6 +89,7 @@
       font-size: 16px;
       cursor: pointer;
       transition: background 0.3s;
+      margin-right: 10px;
     }
 
     .hero button:hover {
@@ -170,7 +171,7 @@
   <section class="hero">
     <div class="hero-content">
       <h1>INTELLIGENT SERVICE ZONE</h1>
-      <button onclick="window.location.href='/login.html'">Book an Appointment</button>
+      <button onclick="smartBookAppointment()">Book an Appointment</button>
       <button onclick="window.location.href='/mechanic/dashboard'">Mechanic section</button>
     </div>
   </section>
@@ -212,5 +213,28 @@
   <footer>
     © 2025 ISZ | Intelligent Service Zone – All Rights Reserved
   </footer>
+
+  <!-- ADD THIS SCRIPT -->
+  <script>
+    async function smartBookAppointment() {
+      try {
+        // First check if already logged in
+        const response = await fetch('/auth/status');
+        const data = await response.json();
+        
+        if (data.logged_in) {
+          // Already logged in - go directly to appointment
+          window.location.href = '/appointment.html';
+        } else {
+          // Not logged in - go to login page
+          window.location.href = '/login.html';
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+        // Fallback to login page
+        window.location.href = '/login.html';
+      }
+    }
+  </script>
 </body>
 </html>

@@ -146,6 +146,44 @@
     .form-row .form-group {
       flex: 1;
     }
+    .loader {
+      display: none;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #3498db;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .validation-error {
+      color: #e74c3c;
+      font-size: 12px;
+      margin-top: -15px;
+      margin-bottom: 15px;
+      display: none;
+    }
+    .info-text {
+      color: #3498db;
+      font-size: 12px;
+      margin-top: -15px;
+      margin-bottom: 15px;
+      font-style: italic;
+    }
+    .auto-calculation-notice {
+      background: rgba(241, 196, 15, 0.2);
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: -10px;
+      margin-bottom: 15px;
+      border-left: 4px solid #f1c40f;
+      font-size: 13px;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -154,7 +192,8 @@
     
     <div class="info-banner">
       <strong>Complete Vehicle Registration</strong><br>
-      Fill in all vehicle and owner details below.
+      Fill in all vehicle and owner details below. <br>
+      <small>Next oil change will be auto-calculated (+3 months) if not specified</small>
     </div>
 
     <!-- Session Plate Notice -->
@@ -165,8 +204,9 @@
 
     <!-- Add Car Form Section -->
     <div>
-      <button onclick="goBack()" class="back-btn">← Back</button>
-      <form id="addCarForm">
+      <button type="button" onclick="goBack()" class="back-btn">← Back</button>
+      
+      <form id="addCarForm" onsubmit="return handleFormSubmit(event)">
         
         <!-- Vehicle Information Section -->
         <div class="form-section">
@@ -174,23 +214,32 @@
           
           <label for="car_plate">License Plate *</label>
           <input type="text" id="car_plate" name="car_plate" placeholder="e.g. A123456" required />
+          <div id="plate-error" class="validation-error"></div>
 
           <div class="form-row">
             <div class="form-group">
               <label for="model">Model *</label>
               <input type="text" id="model" name="model" placeholder="e.g. Toyota Corolla" required />
+              <div id="model-error" class="validation-error"></div>
             </div>
             <div class="form-group">
               <label for="year">Year *</label>
               <input type="number" id="year" name="year" placeholder="e.g. 2020" min="1900" max="2099" required />
+              <div id="year-error" class="validation-error"></div>
             </div>
           </div>
 
           <label for="vin">VIN (Vehicle Identification Number) *</label>
           <input type="text" id="vin" name="vin" placeholder="17-character VIN" maxlength="17" required />
+          <div id="vin-error" class="validation-error"></div>
 
-          <label for="next_oil_change">Next Oil Change Date</label>
+          <label for="next_oil_change">Next Oil Change Date (Optional)</label>
           <input type="date" id="next_oil_change" name="next_oil_change" />
+          <div id="oil-change-error" class="validation-error"></div>
+          <div id="autoCalcNotice" class="auto-calculation-notice">
+            ⏰ <strong>Auto-calculation:</strong> If left empty, next oil change will be set to <span id="autoCalcDate"></span> (+3 months from today)
+          </div>
+          <div class="info-text">Leave empty for auto-calculation (3 months from today)</div>
         </div>
 
         <!-- Owner Information Section -->
@@ -198,17 +247,19 @@
           <h3>👤 Owner Information</h3>
           
           <label for="owner_type">Owner Type *</label>
-          <select id="owner_type" name="owner_type" required>
+          <select id="owner_type" name="owner_type" required onchange="toggleOwnerFields()">
             <option value="">Select Owner Type</option>
             <option value="existing">Existing Owner</option>
             <option value="new">New Owner</option>
           </select>
+          <div id="owner-type-error" class="validation-error"></div>
 
-          <!-- Existing Owner Selection -->
+          <!-- Existing Owner Section -->
           <div id="existingOwnerSection">
-            
-           <label for="PhoneNUMB">Phone Number *</label>
-<input type="text" id="PhoneNUMB" name="PhoneNUMB" placeholder="e.g. +96170123456" required />
+            <label for="phone_number">Phone Number *</label>
+            <input type="text" id="phone_number" name="phone_number" placeholder="e.g. +96170123456" />
+            <div id="phone-error" class="validation-error"></div>
+            <div id="ownerLookupResult" style="display: none; margin-top: 10px; padding: 10px; background: rgba(52, 152, 219, 0.2); border-radius: 5px;"></div>
           </div>
 
           <!-- New Owner Fields -->
@@ -216,15 +267,19 @@
             <div class="form-row">
               <div class="form-group">
                 <label for="owner_name">Owner Name *</label>
-                <input type="text" id="owner_name" name="owner_name" placeholder="e.g. John Doe" />
+                <input type="text" id="owner_name" name="owner_name" placeholder="e.g. John Doe" maxlength="100" />
+                <div id="owner-name-error" class="validation-error"></div>
               </div>
               <div class="form-group">
-                <label for="owner_email">Owner Email</label>
-                <input type="email" id="owner_email" name="owner_email" placeholder="e.g. john@example.com" />
+                <label for="owner_email">Owner Email (Optional)</label>
+                <input type="email" id="owner_email" name="owner_email" placeholder="e.g. john@example.com" maxlength="100" />
+                <div id="owner-email-error" class="validation-error"></div>
               </div>
             </div>
             
-            
+            <label for="new_owner_phone">Phone Number *</label>
+            <input type="text" id="new_owner_phone" name="new_owner_phone" placeholder="e.g. +96170123456" />
+            <div id="new-phone-error" class="validation-error"></div>
           </div>
         </div>
 
@@ -234,212 +289,545 @@
           
           <div class="form-row">
             <div class="form-group">
-              <label for="current_mileage">Current Mileage</label>
+              <label for="current_mileage">Current Mileage (Optional)</label>
               <input type="number" id="current_mileage" name="current_mileage" placeholder="e.g. 50000" min="0" />
+              <div id="mileage-error" class="validation-error"></div>
             </div>
             <div class="form-group">
-              <label for="last_service_date">Last Service Date</label>
+              <label for="last_service_date">Last Service Date (Optional)</label>
               <input type="date" id="last_service_date" name="last_service_date" />
+              <div id="service-date-error" class="validation-error"></div>
             </div>
           </div>
 
-          <label for="service_notes">Service Notes</label>
+          <label for="service_notes">Service Notes (Optional)</label>
           <textarea id="service_notes" name="service_notes" placeholder="Any initial service notes or observations..." rows="3"></textarea>
         </div>
 
-        <button type="submit" id="submitBtn">Add Car to Database</button>
+        <button type="submit" id="submitBtn">
+          <span id="submitText">Add Car to Database</span>
+          <div class="loader" id="submitLoader"></div>
+        </button>
         <div id="msg"></div>
       </form>
     </div>
   </div>
 
   <script>
-    // DOM Elements
-    const carPlateInput = document.getElementById("car_plate");
-    const vinInput = document.getElementById("vin");
-    const yearInput = document.getElementById("year");
-    const ownerTypeSelect = document.getElementById("owner_type");
-    const existingOwnerSection = document.getElementById("existingOwnerSection");
-    const newOwnerFields = document.getElementById("newOwnerFields");
-    const sessionPlateNotice = document.getElementById("sessionPlateNotice");
-    const msg = document.getElementById("msg");
-    const submitBtn = document.getElementById("submitBtn");
-
-    let isSessionPlate = false;
-
-    // Debug function
-    function debugLog(message) {
-        console.log(`[CAR SYSTEM] ${message}`);
+    // Utility functions
+    function debugLog(message, data = null) {
+      console.log(`[CAR SYSTEM] ${message}`, data || '');
     }
 
-    // Get plate from various sources
-    async function initializePlateFromSession() {
-    debugLog("Initializing plate from available sources...");
-    
-    // Check URL parameters first (most reliable - from plate-detection)
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlPlate = urlParams.get('plate');
-    
-    let foundPlate = null;
-    let source = '';
-    
-    // Priority 1: URL parameter (from plate-detection page)
-    if (urlPlate && urlPlate.trim() !== '') {
-        foundPlate = urlPlate.trim().toUpperCase();
-        source = 'plate-detection';
-        debugLog(`Found plate in ${source}: ${foundPlate}`);
-        
-        // Clean URL immediately (remove plate parameter)
-        window.history.replaceState({}, '', '/mechanic/addCar.html');
-    }
-    
-    // Priority 2: sessionStorage from detection (plate-detection uses 'detectedPlate')
-    if (!foundPlate) {
-        const sessionPlate = sessionStorage.getItem('detectedPlate');
-        if (sessionPlate && sessionPlate.trim() !== '') {
-            foundPlate = sessionPlate.trim().toUpperCase();
-            source = 'sessionStorage (detection)';
-            debugLog(`Found plate in ${source}: ${foundPlate}`);
-            
-            // Clear from sessionStorage after reading
-            sessionStorage.removeItem('detectedPlate');
-        }
-    }
-    
-    // Priority 3: localStorage from detection
-    if (!foundPlate) {
-        const localPlate = localStorage.getItem('detectedPlate');
-        if (localPlate && localPlate.trim() !== '') {
-            foundPlate = localPlate.trim().toUpperCase();
-            source = 'localStorage (detection)';
-            debugLog(`Found plate in ${source}: ${foundPlate}`);
-            
-            // Clear from localStorage after reading
-            localStorage.removeItem('detectedPlate');
-        }
-    }
-    
-    // Priority 4: sessionStorage from edit-car (existing feature)
-    if (!foundPlate) {
-        const addCarPlate = sessionStorage.getItem('addCarPlate');
-        if (addCarPlate && addCarPlate.trim() !== '') {
-            foundPlate = addCarPlate.trim().toUpperCase();
-            source = 'sessionStorage (edit-car)';
-            debugLog(`Found plate in ${source}: ${foundPlate}`);
-            
-            // Clear from sessionStorage after reading
-            sessionStorage.removeItem('addCarPlate');
-        }
-    }
-    
-    // Priority 5: localStorage from edit-car
-    if (!foundPlate) {
-        const localAddCarPlate = localStorage.getItem('addCarPlate');
-        if (localAddCarPlate && localAddCarPlate.trim() !== '') {
-            foundPlate = localAddCarPlate.trim().toUpperCase();
-            source = 'localStorage (edit-car)';
-            debugLog(`Found plate in ${source}: ${foundPlate}`);
-            
-            // Clear from localStorage after reading
-            localStorage.removeItem('addCarPlate');
-        }
-    }
-    
-    // Priority 6: Server session (existing feature)
-    if (!foundPlate) {
-        try {
-            debugLog("Checking server session...");
-            const response = await fetch('/mechanic/api/stored-plate');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.plate && data.has_plate && data.plate.trim() !== '') {
-                    foundPlate = data.plate.trim().toUpperCase();
-                    source = 'server session';
-                    debugLog(`Found plate in ${source}: ${foundPlate}`);
-                }
-            }
-        } catch (serverError) {
-            debugLog("Server session check failed: " + serverError.message);
-        }
-    }
-    
-    // If we found a plate, pre-fill the field
-    if (foundPlate) {
-        // Format the plate (remove any non-alphanumeric, ensure proper format)
-        foundPlate = foundPlate.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-        
-        // Check if it's valid format (1 letter + 1-6 digits)
-        if (/^[A-Z][0-9]{1,6}$/.test(foundPlate)) {
-            carPlateInput.value = foundPlate;
-            carPlateInput.readOnly = true;
-            sessionPlateNotice.style.display = 'block';
-            
-            // Update the notice to show where it came from
-            if (source.includes('detection')) {
-                sessionPlateNotice.innerHTML = `
-                    <strong>📸 Plate Detected from Camera</strong><br>
-                    License plate "${foundPlate}" was automatically detected and pre-filled.
-                `;
-            } else if (source.includes('edit-car')) {
-                sessionPlateNotice.innerHTML = `
-                    <strong>🔄 Plate from Edit-Car Search</strong><br>
-                    License plate "${foundPlate}" was pre-filled from car search.
-                `;
-            } else {
-                sessionPlateNotice.innerHTML = `
-                    <strong>📸 Plate Detected Automatically</strong><br>
-                    License plate "${foundPlate}" was pre-filled from ${source}.
-                `;
-            }
-            
-            isSessionPlate = true;
-            debugLog(`Successfully pre-filled plate: ${foundPlate} from ${source}`);
-        } else {
-            debugLog(`Found plate "${foundPlate}" but it doesn't match required format`);
-            // Don't pre-fill invalid plates
-            carPlateInput.value = '';
-            carPlateInput.readOnly = false;
-            isSessionPlate = false;
-        }
-    } else {
-        debugLog("No pre-filled plate found from any source");
-    }
-}
-    function resetForm() {
-        document.getElementById("addCarForm").reset();
-        newOwnerFields.style.display = "none";
-        sessionPlateNotice.style.display = "none";
-        carPlateInput.readOnly = false;
-        isSessionPlate = false;
-        
-        // Focus on plate input
-        carPlateInput.focus();
+    function showError(fieldId, message) {
+      const errorEl = document.getElementById(fieldId);
+      if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+      }
     }
 
+    function clearError(fieldId) {
+      const errorEl = document.getElementById(fieldId);
+      if (errorEl) {
+        errorEl.style.display = 'none';
+        errorEl.textContent = '';
+      }
+    }
+
+    function showMessage(text, type) {
+      const msg = document.getElementById('msg');
+      msg.textContent = text;
+      msg.className = type === 'success' ? 'msg-success' : 'msg-error';
+      msg.style.display = 'block';
+      
+      setTimeout(() => {
+        msg.style.display = 'none';
+      }, 5000);
+    }
+
+    // Calculate date 3 months from now (matching backend logic)
+    function calculateNextOilChangeDate() {
+      const today = new Date();
+      let futureDate = new Date(today);
+      
+      // Add 3 months
+      futureDate.setMonth(futureDate.getMonth() + 3);
+      
+      // Handle month overflow (e.g., December + 3 = March of next year)
+      if (futureDate.getMonth() !== (today.getMonth() + 3) % 12) {
+        futureDate = new Date(today.getFullYear(), today.getMonth() + 3, today.getDate());
+      }
+      
+      // Format as YYYY-MM-DD
+      const year = futureDate.getFullYear();
+      const month = String(futureDate.getMonth() + 1).padStart(2, '0');
+      const day = String(futureDate.getDate()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}`;
+    }
+
+    // Update auto-calculation notice
+    function updateAutoCalcNotice() {
+      const nextOilChangeInput = document.getElementById('next_oil_change');
+      const autoCalcNotice = document.getElementById('autoCalcNotice');
+      const autoCalcDateSpan = document.getElementById('autoCalcDate');
+      
+      if (!nextOilChangeInput.value) {
+        const autoDate = calculateNextOilChangeDate();
+        autoCalcDateSpan.textContent = autoDate;
+        autoCalcNotice.style.display = 'block';
+      } else {
+        autoCalcNotice.style.display = 'none';
+      }
+    }
+
+    // Phone number cleaning (matches backend)
+    function cleanPhoneNumber(phone) {
+      return phone.replace(/[+\s\-()]/g, '');
+    }
+
+    // Email validation (matches backend)
     function isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
+      const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      return emailPattern.test(email);
     }
 
+    // Toggle owner fields
+    function toggleOwnerFields() {
+      const ownerType = document.getElementById('owner_type').value;
+      const existingOwnerSection = document.getElementById('existingOwnerSection');
+      const newOwnerFields = document.getElementById('newOwnerFields');
+      
+      clearError('owner-type-error');
+      clearError('phone-error');
+      clearError('owner-name-error');
+      
+      if (ownerType === 'existing') {
+        existingOwnerSection.style.display = 'block';
+        newOwnerFields.style.display = 'none';
+        document.getElementById('phone_number').required = true;
+        document.getElementById('new_owner_phone').required = false;
+      } else if (ownerType === 'new') {
+        existingOwnerSection.style.display = 'none';
+        newOwnerFields.style.display = 'block';
+        document.getElementById('phone_number').required = false;
+        document.getElementById('new_owner_phone').required = true;
+      } else {
+        existingOwnerSection.style.display = 'none';
+        newOwnerFields.style.display = 'none';
+        document.getElementById('phone_number').required = false;
+        document.getElementById('new_owner_phone').required = false;
+      }
+    }
+
+    // Go back function
     function goBack() {
-        // Always go to edit-car page when back is clicked
-        window.location.href = "/mechanic/edit-car";
+      window.location.href = "/mechanic/edit-car";
     }
 
-    // Enter key support for form submission (keep existing)
-    document.addEventListener("keypress", (e) => {
-        if (e.key === "Enter" && !e.target.matches("textarea")) {
-            e.preventDefault();
-            // Don't auto-submit on enter, let user click the button
+    // Validate all form fields (matches backend validation)
+    function validateForm() {
+      let isValid = true;
+      
+      // Clear all errors first
+      document.querySelectorAll('.validation-error').forEach(el => {
+        el.style.display = 'none';
+        el.textContent = '';
+      });
+      
+      // 1. License plate validation
+      const carPlate = document.getElementById('car_plate').value.trim().toUpperCase();
+      if (!carPlate || !carPlate.match(/^[A-Z]{1}[0-9]{1,6}$/)) {
+        showError('plate-error', 'Valid license plate is required (1 letter followed by 1-6 digits)');
+        isValid = false;
+      }
+      
+      // 2. Car model validation
+      const model = document.getElementById('model').value.trim();
+      if (!model) {
+        showError('model-error', 'Car model is required');
+        isValid = false;
+      } else if (model.length > 50) {
+        showError('model-error', 'Car model name is too long (max 50 characters)');
+        isValid = false;
+      }
+      
+      // 3. Year validation
+      const yearInput = document.getElementById('year');
+      let year = null;
+      try {
+        year = yearInput.value ? parseInt(yearInput.value) : null;
+      } catch (e) {
+        year = null;
+      }
+      
+      const currentYear = new Date().getFullYear();
+      if (!year) {
+        showError('year-error', 'Manufacturing year is required');
+        isValid = false;
+      } else if (year < 1900 || year > currentYear + 1) {
+        showError('year-error', `Year must be between 1900 and ${currentYear + 1}`);
+        isValid = false;
+      }
+      
+      // 4. VIN validation
+      const vin = document.getElementById('vin').value.trim().toUpperCase();
+      if (!vin || vin.length !== 17) {
+        showError('vin-error', 'Valid 17-character VIN is required');
+        isValid = false;
+      }
+      
+      // 5. Owner type validation
+      const ownerType = document.getElementById('owner_type').value;
+      if (!ownerType) {
+        showError('owner-type-error', 'Please select owner type');
+        isValid = false;
+      }
+      
+      // 6. Phone number validation (applies to both owner types)
+      let phoneNumber = '';
+      if (ownerType === 'existing') {
+        phoneNumber = document.getElementById('phone_number').value.trim();
+      } else if (ownerType === 'new') {
+        phoneNumber = document.getElementById('new_owner_phone').value.trim();
+      }
+      
+      if (phoneNumber) {
+        const phoneClean = cleanPhoneNumber(phoneNumber);
+        
+        if (phoneClean.length < 8) {
+          showError(ownerType === 'existing' ? 'phone-error' : 'new-phone-error', 
+                   'Phone number is too short (minimum 8 digits)');
+          isValid = false;
+        } else if (phoneClean.length > 20) {
+          showError(ownerType === 'existing' ? 'phone-error' : 'new-phone-error',
+                   'Phone number is too long (max 20 characters)');
+          isValid = false;
+        } else if (!phoneClean.match(/^\+?[0-9]+$/)) {
+          showError(ownerType === 'existing' ? 'phone-error' : 'new-phone-error',
+                   'Phone number should contain only digits and optional "+" prefix');
+          isValid = false;
         }
-    });
+      } else if (ownerType !== '') {
+        showError(ownerType === 'existing' ? 'phone-error' : 'new-phone-error',
+                 'Phone number is required');
+        isValid = false;
+      }
+      
+      // 7. New owner specific validations
+      if (ownerType === 'new') {
+        const ownerName = document.getElementById('owner_name').value.trim();
+        const ownerEmail = document.getElementById('owner_email').value.trim();
+        
+        // Owner name validation
+        if (!ownerName) {
+          showError('owner-name-error', 'Owner name is required for new owners');
+          isValid = false;
+        } else if (ownerName.length > 100) {
+          showError('owner-name-error', 'Owner name is too long (max 100 characters)');
+          isValid = false;
+        }
+        
+        // Check for malicious input in name (matches backend)
+        if (ownerName && /[<>{}[\];]/.test(ownerName)) {
+          showError('owner-name-error', 'Owner name contains invalid characters');
+          isValid = false;
+        }
+        
+        // Owner email validation (optional but must be valid if provided)
+        if (ownerEmail) {
+          if (ownerEmail.length > 100) {
+            showError('owner-email-error', 'Email address is too long (max 100 characters)');
+            isValid = false;
+          } else if (!isValidEmail(ownerEmail)) {
+            showError('owner-email-error', 'Invalid email format. Please use a valid email address');
+            isValid = false;
+          }
+        }
+      }
+      
+      // 8. Next oil change date validation (optional)
+      const nextOilChange = document.getElementById('next_oil_change').value;
+      if (nextOilChange) {
+        try {
+          const oilDate = new Date(nextOilChange);
+          if (isNaN(oilDate.getTime())) {
+            showError('oil-change-error', 'Invalid date format. Use YYYY-MM-DD');
+            isValid = false;
+          }
+        } catch (e) {
+          showError('oil-change-error', 'Invalid date format. Use YYYY-MM-DD');
+          isValid = false;
+        }
+      }
+      
+      // 9. Mileage validation (optional)
+      const mileageInput = document.getElementById('current_mileage').value;
+      if (mileageInput && mileageInput.trim() !== '') {
+        try {
+          const mileage = parseInt(mileageInput);
+          if (isNaN(mileage) || mileage < 0) {
+            showError('mileage-error', 'Mileage must be a positive number');
+            isValid = false;
+          }
+        } catch (e) {
+          showError('mileage-error', 'Mileage must be a valid number');
+          isValid = false;
+        }
+      }
+      
+      // 10. Last service date validation (optional)
+      const lastServiceDate = document.getElementById('last_service_date').value;
+      if (lastServiceDate) {
+        try {
+          const serviceDate = new Date(lastServiceDate);
+          if (isNaN(serviceDate.getTime())) {
+            showError('service-date-error', 'Invalid date format. Use YYYY-MM-DD');
+            isValid = false;
+          }
+        } catch (e) {
+          showError('service-date-error', 'Invalid date format. Use YYYY-MM-DD');
+          isValid = false;
+        }
+      }
+      
+      return isValid;
+    }
+
+    // Main form submission handler
+    async function handleFormSubmit(event) {
+      event.preventDefault();
+      debugLog("Form submission started");
+      
+      // Validate form before sending
+      if (!validateForm()) {
+        showMessage('Please fix the errors in the form before submitting.', 'error');
+        return false;
+      }
+      
+      // Get form elements
+      const carPlateInput = document.getElementById('car_plate');
+      const modelInput = document.getElementById('model');
+      const yearInput = document.getElementById('year');
+      const vinInput = document.getElementById('vin');
+      const ownerTypeSelect = document.getElementById('owner_type');
+      const nextOilChangeInput = document.getElementById('next_oil_change');
+      const submitBtn = document.getElementById('submitBtn');
+      const submitText = document.getElementById('submitText');
+      const submitLoader = document.getElementById('submitLoader');
+      
+      // Prepare form data - backend will auto-calculate if empty
+      const formData = {
+        car_plate: carPlateInput.value.trim().toUpperCase(),
+        model: modelInput.value.trim(),
+        year: parseInt(yearInput.value),
+        vin: vinInput.value.trim().toUpperCase(),
+        next_oil_change: nextOilChangeInput.value || null, // Can be empty - backend will auto-calculate
+        owner_type: ownerTypeSelect.value,
+        current_mileage: document.getElementById('current_mileage').value ? 
+                        parseInt(document.getElementById('current_mileage').value) : null,
+        last_service_date: document.getElementById('last_service_date').value || null,
+        service_notes: document.getElementById('service_notes').value.trim() || 'Initial car registration'
+      };
+      
+      // Add owner-specific data
+      const ownerType = ownerTypeSelect.value;
+      if (ownerType === 'existing') {
+        formData.phone_number = document.getElementById('phone_number').value.trim();
+      } else if (ownerType === 'new') {
+        formData.owner_name = document.getElementById('owner_name').value.trim();
+        formData.owner_email = document.getElementById('owner_email').value.trim() || null;
+        formData.phone_number = document.getElementById('new_owner_phone').value.trim();
+      }
+      
+      debugLog("Sending form data:", formData);
+      
+      // Show loading state
+      submitBtn.disabled = true;
+      submitText.style.display = 'none';
+      submitLoader.style.display = 'block';
+      
+      try {
+        // Send data to server
+        const response = await fetch('/mechanic/api/add-car', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        debugLog("Server response:", data);
+        
+        if (data.status === 'success') {
+          // Show success message with auto-calculation info if applicable
+          let successMessage = data.message;
+          if (data.auto_calculated) {
+            successMessage = `✅ ${data.message} Next oil change auto-scheduled for ${data.next_oil_change} (+3 months).`;
+          }
+          
+          showMessage(successMessage, 'success');
+          
+          // Clear session plate if used
+          sessionStorage.removeItem('detectedPlate');
+          localStorage.removeItem('detectedPlate');
+          
+          // Clear form
+          document.getElementById('addCarForm').reset();
+          
+          // Hide auto-calculation notice
+          document.getElementById('autoCalcNotice').style.display = 'none';
+          
+          // Redirect after delay
+          setTimeout(() => {
+            window.location.href = "/mechanic/edit-car";
+          }, 3000);
+        } else {
+          showMessage(data.message || 'Error adding car. Please check the data and try again.', 'error');
+          
+          // Scroll to top to show error
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      } catch (error) {
+        debugLog('Network error:', error);
+        showMessage('Network error. Please check your connection and try again.', 'error');
+      } finally {
+        // Reset loading state
+        submitBtn.disabled = false;
+        submitText.style.display = 'block';
+        submitLoader.style.display = 'none';
+      }
+      
+      return false;
+    }
+
+    // Initialize plate from session
+    async function initializePlateFromSession() {
+      debugLog("Initializing plate from available sources...");
+      
+      const carPlateInput = document.getElementById('car_plate');
+      const sessionPlateNotice = document.getElementById('sessionPlateNotice');
+      
+      // Check URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      let foundPlate = urlParams.get('plate');
+      let source = 'URL';
+      
+      // Check session storage
+      if (!foundPlate) {
+        foundPlate = sessionStorage.getItem('detectedPlate');
+        if (foundPlate) source = 'sessionStorage';
+      }
+      
+      // Check local storage
+      if (!foundPlate) {
+        foundPlate = localStorage.getItem('detectedPlate');
+        if (foundPlate) source = 'localStorage';
+      }
+      
+      // Check server session
+      if (!foundPlate) {
+        try {
+          const response = await fetch('/mechanic/api/stored-plate');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.plate && data.has_plate) {
+              foundPlate = data.plate;
+              source = 'server';
+            }
+          }
+        } catch (error) {
+          debugLog("Server session check failed:", error);
+        }
+      }
+      
+      // Apply found plate
+      if (foundPlate) {
+        const cleanPlate = foundPlate.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (/^[A-Z][0-9]{1,6}$/.test(cleanPlate)) {
+          carPlateInput.value = cleanPlate;
+          carPlateInput.readOnly = true;
+          sessionPlateNotice.style.display = 'block';
+          sessionPlateNotice.innerHTML = `
+            <strong>📸 Plate Detected Automatically</strong><br>
+            License plate "${cleanPlate}" was pre-filled from ${source}.
+          `;
+          debugLog(`Pre-filled plate: ${cleanPlate} from ${source}`);
+        }
+      }
+    }
 
     // Initialize when page loads
-    document.addEventListener("DOMContentLoaded", function() {
-        debugLog("Add car form loaded");
-        initializePlateFromSession(); // Auto-fill plate if available
-        carPlateInput.focus();
+    document.addEventListener('DOMContentLoaded', function() {
+      debugLog("Add car form initialized");
+      
+      // Initialize plate from session
+      initializePlateFromSession();
+      
+      // Initialize owner type fields
+      toggleOwnerFields();
+      
+      // Show auto-calculation notice
+      updateAutoCalcNotice();
+      
+      // Update auto-calculation notice when next oil change field changes
+      document.getElementById('next_oil_change').addEventListener('change', updateAutoCalcNotice);
+      document.getElementById('next_oil_change').addEventListener('input', updateAutoCalcNotice);
+      
+      // Add real-time validation for key fields
+      document.getElementById('car_plate').addEventListener('blur', validateForm);
+      document.getElementById('model').addEventListener('blur', validateForm);
+      document.getElementById('year').addEventListener('blur', validateForm);
+      document.getElementById('vin').addEventListener('blur', validateForm);
+      document.getElementById('phone_number').addEventListener('blur', validateForm);
+      document.getElementById('new_owner_phone').addEventListener('blur', validateForm);
+      document.getElementById('owner_name').addEventListener('blur', validateForm);
+      document.getElementById('owner_email').addEventListener('blur', validateForm);
+      
+      // Add phone number lookup for existing owners
+      const phoneNumberInput = document.getElementById('phone_number');
+      let lookupTimeout;
+      
+      phoneNumberInput.addEventListener('input', function() {
+        clearTimeout(lookupTimeout);
+        lookupTimeout = setTimeout(async () => {
+          const phone = this.value.trim();
+          if (phone.length >= 8) {
+            try {
+              const response = await fetch(`/mechanic/api/check-owner/${encodeURIComponent(phone)}`);
+              const data = await response.json();
+              const resultDiv = document.getElementById('ownerLookupResult');
+              
+              if (data.success && data.exists) {
+                resultDiv.innerHTML = `
+                  <div style="color: #2ecc71;">
+                    ✓ Owner found: <strong>${data.owner.Owner_Name}</strong><br>
+                    ${data.owner.Owner_Email ? 'Email: ' + data.owner.Owner_Email : ''}
+                  </div>
+                `;
+                resultDiv.style.display = 'block';
+              } else {
+                resultDiv.innerHTML = `
+                  <div style="color: #e74c3c;">
+                    ✗ No owner found with this phone number
+                  </div>
+                `;
+                resultDiv.style.display = 'block';
+              }
+            } catch (error) {
+              debugLog("Owner lookup error:", error);
+            }
+          }
+        }, 500);
+      });
+      
+      // Set minimum date for next oil change to today
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('next_oil_change').setAttribute('min', today);
+      document.getElementById('last_service_date').setAttribute('max', today);
     });
-</script>
+  </script>
 </body>
 </html>

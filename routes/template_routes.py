@@ -15,6 +15,9 @@ def index():
 
 @template_bp.route("/login.html")
 def login_page():
+    # ADD THIS: Check if already logged in
+    if session.get("logged_in"):
+        return redirect("/appointment.html")
     return render_template("login.html")
 
 @template_bp.route("/signup.html")
@@ -23,6 +26,9 @@ def signup_page():
 
 @template_bp.route("/appointment.html")
 def serve_form():
+    # ADD THIS: Check if logged in
+    if not session.get("logged_in"):
+        return redirect("/login.html")
     return render_template("appointment.html")
 
 @template_bp.route("/viewAppointment/search")

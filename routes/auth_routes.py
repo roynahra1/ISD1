@@ -130,6 +130,7 @@ def signup():
         return jsonify({"status": "error", "message": "Internal server error"}), 500
     finally:
         _safe_close(cursor, conn)
+
 @auth_bp.route("/login", methods=["POST"])
 def login():
     data = request.get_json() or {}
@@ -186,7 +187,8 @@ def login():
                 "message": "Login successful",
                 "owner_id": session.get('owner_id'),
                 "owner_name": session.get('owner_name'),
-                "has_owner_linked": session.get('owner_id') is not None
+                "has_owner_linked": session.get('owner_id') is not None,
+                "redirect": "/appointment.html"  # ADD THIS LINE ONLY
             }), 200
 
         return jsonify({"status": "error", "message": "Invalid username or password"}), 401
@@ -254,6 +256,7 @@ def link_owner():
         return jsonify({"status":"error","message":"Internal server error"}), 500
     finally:
         _safe_close(cursor, conn)
+
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
     try:
@@ -287,6 +290,7 @@ def auth_status():
     except Exception as e:
         logger.error(f"Error in auth_status: {e}")
         return jsonify({"status": "error", "message": "Internal server error"}), 500
+
 # ===============================
 # MECHANIC-SPECIFIC AUTHENTICATION (NEW SESSION KEYS)
 # ===============================

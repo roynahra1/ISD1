@@ -164,6 +164,18 @@
             border-top: 4px solid #34495e;
         }
 
+        /* Email Reminder Card */
+        .stat-card.email-reminder {
+            border-top: 4px solid #9b59b6;
+            cursor: pointer;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+
+        .stat-card.email-reminder:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
         .stat-number {
             font-size: 2.5em;
             font-weight: bold;
@@ -174,6 +186,29 @@
         .stat-label {
             color: #7f8c8d;
             font-size: 0.9em;
+        }
+
+        /* Email Button */
+        .email-btn {
+            background: #9b59b6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: background 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .email-btn:hover {
+            background: #8e44ad;
+        }
+
+        .email-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
         }
 
         /* Quick Actions */
@@ -273,6 +308,10 @@
             background: #9b59b6;
         }
 
+        .activity-icon.email {
+            background: #9b59b6;
+        }
+
         .activity-details {
             flex: 1;
         }
@@ -356,9 +395,57 @@
             }
         }
 
-        /* Minimal decorative CSS: removed animated badges and spinners for clarity */
-        .nav-links li {
-            position: relative;
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .notification.success {
+            background: #27ae60;
+        }
+
+        .notification.error {
+            background: #e74c3c;
+        }
+
+        .notification.info {
+            background: #3498db;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -377,8 +464,8 @@
                 <li><a href="/mechanic/service-history"><i class="fas fa-history"></i> Service History</a></li>
                 <li><a href="/mechanic/appointments"><i class="fas fa-calendar-alt"></i> View Appointments</a></li>
                 <li><a href="/mechanic/edit-car"><i class="fas fa-edit"></i> Edit Car Info</a></li>
-<li><a href="/mechanic/edit-owner"><i class="fas fa-user-edit"></i> Edit Owner Info</a></li>
-               
+                <li><a href="/mechanic/edit-owner"><i class="fas fa-user-edit"></i> Edit Owner Info</a></li>
+            </ul>
         </aside>
 
         <!-- Main Content -->
@@ -432,10 +519,14 @@
                     <div class="stat-label">Total Vehicles</div>
                 </div>
 
-                <div class="stat-card secondary">
-                    <i class="fas fa-users fa-2x" style="color: #34495e;"></i>
+                <!-- NEW: Email Reminder Card -->
+                <div class="stat-card email-reminder" onclick="sendRemindersToAll()">
+                    <i class="fas fa-envelope fa-2x" style="color: #9b59b6;"></i>
                     <div class="stat-number" id="totalOwners">0</div>
                     <div class="stat-label">Total Owners</div>
+                    <button class="email-btn" id="sendRemindersBtn">
+                        <i class="fas fa-paper-plane"></i> Send Reminders
+                    </button>
                 </div>
             </div>
 
@@ -463,7 +554,6 @@
                         <span>Service History</span>
                     </a>
                     
-                    
                 </div>
             </div>
 
@@ -481,13 +571,13 @@
         </main>
     </div>
 
-       <script>
+    <script>
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
-                updateCurrentTime();
-                updateUserInfo();
-                loadDashboardData();
-                startRealTimeUpdates();
+            updateCurrentTime();
+            updateUserInfo();
+            loadDashboardData();
+            startRealTimeUpdates();
         });
 
         // Update current time
@@ -506,7 +596,6 @@
 
         // Load dashboard data
         async function loadDashboardData() {
-            
             try {
                 // Load stats
                 const statsResponse = await fetch('/mechanic/api/dashboard-stats');
@@ -515,7 +604,6 @@
                 }
                 
                 const stats = await statsResponse.json();
-                
                 
                 if (stats.success) {
                     document.getElementById('todayServices').textContent = stats.data.today_services || 0;
@@ -533,7 +621,7 @@
 
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
-                showError('Failed to load dashboard data. Please refresh the page.');
+                showNotification('Failed to load dashboard data. Please refresh the page.', 'error');
             }
         }
 
@@ -546,7 +634,6 @@
                 }
                 
                 const activity = await activityResponse.json();
-                
                 
                 const activityList = document.getElementById('activityList');
                 const activityLoading = document.getElementById('activityLoading');
@@ -607,7 +694,8 @@
                 'service': 'service',
                 'appointment': 'appointment',
                 'detection': 'detection',
-                'registration': 'registration'
+                'registration': 'registration',
+                'email': 'email'
             };
             return iconMap[type] || 'service';
         }
@@ -618,7 +706,8 @@
                 'service': 'fas fa-tools',
                 'appointment': 'fas fa-calendar-alt',
                 'detection': 'fas fa-camera',
-                'registration': 'fas fa-car'
+                'registration': 'fas fa-car',
+                'email': 'fas fa-envelope'
             };
             return iconMap[type] || 'fas fa-tools';
         }
@@ -691,26 +780,100 @@
             }
         }
 
-        // Show error message
-        function showError(message) {
-            // Create temporary error display
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-message';
-            errorDiv.textContent = message;
-            errorDiv.style.position = 'fixed';
-            errorDiv.style.top = '20px';
-            errorDiv.style.right = '20px';
-            errorDiv.style.zIndex = '1000';
+        // NEW: Send reminders to all owners
+        async function sendRemindersToAll() {
+            const button = document.getElementById('sendRemindersBtn');
+            const originalText = button.innerHTML;
+            const totalOwners = parseInt(document.getElementById('totalOwners').textContent) || 0;
             
-            document.body.appendChild(errorDiv);
+            if (totalOwners === 0) {
+                showNotification('No owners found to send emails to.', 'error');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to send email reminders to all ${totalOwners} owners?`)) {
+                return;
+            }
+            
+            // Disable button and show loading
+            button.disabled = true;
+            button.innerHTML = '<div class="spinner"></div> Sending...';
+            
+            try {
+                const response = await fetch('/api/reminders/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const message = `✅ Successfully sent ${data.emails_sent || 0} email(s) to owners!`;
+                    showNotification(message, 'success');
+                    
+                    // Add to recent activity
+                    addEmailActivity(data.emails_sent || 0, totalOwners);
+                    
+                    // Refresh dashboard stats
+                    loadDashboardData();
+                } else {
+                    showNotification(`❌ Failed to send emails: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error sending reminders:', error);
+                showNotification(`❌ Error: ${error.message}`, 'error');
+            } finally {
+                // Re-enable button
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        }
+
+        // Add email activity to the list
+        function addEmailActivity(sentCount, totalCount) {
+            const activityList = document.getElementById('activityList');
+            const activityItem = document.createElement('li');
+            activityItem.className = 'activity-item';
+            
+            activityItem.innerHTML = `
+                <div class="activity-icon email">
+                    <i class="fas fa-envelope"></i>
+                </div>
+                <div class="activity-details">
+                    <div class="activity-title">Email Reminders Sent</div>
+                    <div class="activity-description">Sent reminders to ${sentCount} of ${totalCount} owners</div>
+                    <div class="activity-time">Just now</div>
+                </div>
+            `;
+            
+            // Add to top of list
+            if (activityList.firstChild) {
+                activityList.insertBefore(activityItem, activityList.firstChild);
+            } else {
+                activityList.appendChild(activityItem);
+            }
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            const existingNotifications = document.querySelectorAll('.notification');
+            existingNotifications.forEach(notification => notification.remove());
+            
+            // Create new notification
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = message;
+            
+            document.body.appendChild(notification);
             
             // Remove after 5 seconds
             setTimeout(() => {
-                errorDiv.remove();
+                notification.remove();
             }, 5000);
         }
-
-        // Keyboard shortcuts removed to keep UI simple and predictable
     </script>
 </body>
 </html>

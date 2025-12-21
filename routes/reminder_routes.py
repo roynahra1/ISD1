@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, current_app
+from flask import Blueprint, jsonify, current_app, request
 import threading
 from apscheduler.schedulers.background import BackgroundScheduler
 import mysql.connector
@@ -138,13 +138,13 @@ def send_reminder_email(owner):
 
     from flask_mail import Message
 
-    subject = "🚗 Your Monthly Service Reminder – ISD Garage"
+    subject = "🚗 Your Monthly Service Reminder – ISF Garage"
     today = date.today().strftime("%B %d, %Y")
 
     body = f"""
 Hello {owner['name']},
 
-This is a monthly reminder from ISD Garage to keep your vehicle in great condition.
+This is a monthly reminder from ISF Garage to keep your vehicle in great condition.
 
 📅 Date: {today}
 
@@ -160,7 +160,7 @@ Your vehicles:
 
 📌 Schedule Your Appointment Now:
 
-Book Online: http://192.168.1.7:5000/index.html
+Book Online: http://127.0.0.1:5000/index.html
 
 Or contact us:
 • Phone: +961-70631093
@@ -177,6 +177,65 @@ ISF Garage Team
         return True
     except Exception as e:
         logger.error(f"❌ Failed to send {owner['email']}: {e}")
+        return False
+
+
+# ===============================
+# SEND URGENT EMAIL
+# ===============================
+def send_urgent_email_to_owner(plate_number, owner_name, owner_email, urgent_message):
+    if not current_app.config.get("MAIL_ENABLED"):
+        logger.warning(f"⚠️ Email disabled — would have sent urgent email to {owner_email}")
+        return False
+
+    from flask_mail import Message
+
+    subject = f"⚠️ URGENT ATTENTION NEEDED - Vehicle {plate_number}"
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    body = f"""
+URGENT NOTIFICATION - ISF GARAGE
+
+Dear {owner_name},
+
+This is an URGENT notification regarding your vehicle:
+
+🚗 VEHICLE DETAILS:
+• Plate Number: {plate_number}
+• Time of Notification: {timestamp}
+• Status: REQUIRES IMMEDIATE ATTENTION
+
+📋 URGENT MESSAGE FROM MECHANIC:
+{urgent_message}
+
+⚠️ ACTION REQUIRED:
+Please contact the garage IMMEDIATELY to address these critical issues.
+
+📞 CONTACT INFORMATION:
+• Phone: +961-70631093
+• Email: service@isfgarage.com
+• Address: ISD Garage, Main Street
+
+Your prompt attention is required for vehicle safety.
+
+Sincerely,
+ISF Garage Service Team
+"""
+
+    try:
+        msg = Message(
+            subject=subject,
+            recipients=[owner_email],
+            body=body,
+            sender=current_app.config.get('MAIL_DEFAULT_SENDER')
+        )
+        mail.send(msg)
+        
+        logger.info(f"📧 Sent URGENT email to {owner_email} for vehicle {plate_number}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to send urgent email: {e}")
         return False
 
 
@@ -207,12 +266,62 @@ def send_reminders_thread():
 
 
 # ===============================
-# ROUTES (unchanged behavior)
+# ROUTES
 # ===============================
 @reminder_bp.route('/send', methods=['POST'])
 def trigger_reminders():
     result = send_monthly_reminders()
     return jsonify(result)
+
+
+@reminder_bp.route('/urgent', methods=['POST'])
+def send_urgent_email():
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['plate_number', 'owner_email', 'urgent_message']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    "success": False,
+                    "message": f"Missing required field: {field}"
+                }), 400
+        
+        plate_number = data['plate_number']
+        owner_name = data.get('owner_name', 'Vehicle Owner')
+        owner_email = data['owner_email']
+        urgent_message = data['urgent_message']
+        
+        # Check if email is enabled
+        if not current_app.config.get("MAIL_ENABLED"):
+            return jsonify({
+                "success": False,
+                "message": "Email service is not enabled"
+            }), 503
+        
+        # Send urgent email
+        success = send_urgent_email_to_owner(plate_number, owner_name, owner_email, urgent_message)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "Urgent email sent successfully",
+                "plate_number": plate_number,
+                "owner_email": owner_email
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Failed to send urgent email"
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"❌ Error in urgent email endpoint: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Internal server error: {str(e)}"
+        }), 500
 
 
 @reminder_bp.route('/test', methods=['GET'])

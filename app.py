@@ -339,7 +339,6 @@ if __name__ == "__main__":
     print("📍 http://localhost:5000")
     print("")
     print("✅ All routes preserved")
-    print("🕒 Session duration: 7 days")
     print("🚗 Add Car functionality: MOVED TO MECHANIC ROUTES")
     print("📧 Email Reminders: AVAILABLE at /api/reminders/*")
     print("")

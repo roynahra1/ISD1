@@ -111,7 +111,7 @@ def get_dashboard_stats():
         conn = get_connection()
         cursor = conn.cursor()
         
-        # Today's services count
+        # Today's services count - ONLY from service_history table (after-service form)
         cursor.execute("""
             SELECT COUNT(*) as count 
             FROM service_history 
@@ -120,7 +120,7 @@ def get_dashboard_stats():
         today_services_result = cursor.fetchone()
         today_services = today_services_result[0] if today_services_result else 0
         
-        # Completed this week
+        # Completed this week - ONLY from service_history table
         cursor.execute("""
             SELECT COUNT(*) as count 
             FROM service_history 
@@ -129,17 +129,17 @@ def get_dashboard_stats():
         completed_week_result = cursor.fetchone()
         completed_week = completed_week_result[0] if completed_week_result else 0
         
-        # Today's appointments
+        # Today's appointments - This is separate from services
         cursor.execute("SELECT COUNT(*) as count FROM appointment WHERE Date = CURDATE()")
         today_appointments_result = cursor.fetchone()
         today_appointments = today_appointments_result[0] if today_appointments_result else 0
         
-        # Total appointments
+        # Total appointments - Separate from services
         cursor.execute("SELECT COUNT(*) as count FROM appointment")
         total_appointments_result = cursor.fetchone()
         total_appointments = total_appointments_result[0] if total_appointments_result else 0
         
-        # Urgent jobs (overdue oil changes)
+        # Urgent jobs (overdue oil changes) - Based on car table
         cursor.execute("""
             SELECT COUNT(*) as count 
             FROM car 
@@ -159,18 +159,30 @@ def get_dashboard_stats():
         total_owners_result = cursor.fetchone()
         total_owners = total_owners_result[0] if total_owners_result else 0
         
-        logger.info("Stats - Today Services: %s, Week: %s, Today Appointments: %s", today_services, completed_week, today_appointments)
+        # Total services performed (all time) - from service_history
+        cursor.execute("SELECT COUNT(*) as count FROM service_history")
+        total_services_result = cursor.fetchone()
+        total_services = total_services_result[0] if total_services_result else 0
+        
+        # Services pending (appointments) - This is separate
+        cursor.execute("SELECT COUNT(*) as count FROM appointment WHERE Date >= CURDATE()")
+        pending_services_result = cursor.fetchone()
+        pending_services = pending_services_result[0] if pending_services_result else 0
+        
+        logger.info("Stats - Today Services: %s, Week: %s, Today Appointments: %s", 
+                   today_services, completed_week, today_appointments)
         
         return jsonify({
             "success": True,
             "data": {
-                "today_services": today_services,
-                "completed_week": completed_week,
-                "today_appointments": today_appointments,
-                "pending_services": total_appointments,
-                "urgent_jobs": urgent_jobs,
+                "today_services": today_services,  # Services completed today (from service_history)
+                "completed_week": completed_week,  # Services completed this week (from service_history)
+                "today_appointments": today_appointments,  # Appointments scheduled for today
+                "pending_services": pending_services,  # Future appointments
+                "urgent_jobs": urgent_jobs,  # Cars with overdue oil changes
                 "total_cars": total_cars,
-                "total_owners": total_owners
+                "total_owners": total_owners,
+                "total_services": total_services  # All services ever performed
             }
         })
         
@@ -182,25 +194,25 @@ def get_dashboard_stats():
         return jsonify({"success": False, "message": "Internal server error"}), 500
     finally:
         _safe_close(cursor, conn)
-
 @mechanic_bp.route('/api/recent-activity', methods=['GET'])
 @mechanic_login_required
 def get_recent_activity():
-    """API endpoint for recent activity. Supports `limit` and `offset` query params."""
-    logger.info("Recent activity requested")
+    """API endpoint for recent activity with REAL data - DEBUGGED VERSION"""
+    logger.info("Recent activity requested - DEBUGGED VERSION")
 
     # Safely parse pagination params
     try:
-        limit = int(request.args.get('limit', 8))
+        limit = int(request.args.get('limit', 10))
     except Exception:
-        limit = 8
+        limit = 10
+    
     try:
         offset = int(request.args.get('offset', 0))
     except Exception:
         offset = 0
 
     # cap limit to avoid heavy queries
-    max_limit = 100
+    max_limit = 50
     if limit < 1:
         limit = 1
     if limit > max_limit:
@@ -214,14 +226,18 @@ def get_recent_activity():
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # Get recent service history with pagination
-        query = '''
+        # ============================================
+        # SIMPLIFIED QUERY - FIXED VERSION
+        # ============================================
+        
+        # Get recent service history (most reliable source)
+        cursor.execute('''
             SELECT 
                 sh.History_ID,
                 sh.Service_Date as timestamp,
                 sh.Car_plate as plate,
-                sh.Notes as description,
-                sh.Mileage as mileage,
+                sh.Mileage,
+                sh.Notes,
                 c.Model as car_model,
                 o.Owner_Name as owner_name
             FROM service_history sh
@@ -229,34 +245,187 @@ def get_recent_activity():
             LEFT JOIN owner o ON c.Owner_ID = o.Owner_ID
             ORDER BY sh.Service_Date DESC
             LIMIT %s OFFSET %s
-        '''
-        cursor.execute(query, (limit, offset))
+        ''', (limit, offset))
 
         activities = cursor.fetchall()
-
-        # Format activities for frontend
+        logger.info(f"Found {len(activities)} service history records")
+        
+        # ============================================
+        # FORMAT ACTIVITIES PROPERLY
+        # ============================================
         formatted_activities = []
+        
         for activity in activities:
             timestamp = activity.get('timestamp')
-            if timestamp and hasattr(timestamp, 'isoformat'):
-                timestamp = timestamp.isoformat()
-
+            
+            # Format timestamp
+            if timestamp:
+                if hasattr(timestamp, 'isoformat'):
+                    timestamp_str = timestamp.isoformat()
+                else:
+                    timestamp_str = str(timestamp)
+            else:
+                timestamp_str = datetime.now().isoformat()
+            
+            # Create meaningful description
+            plate = activity.get('plate', 'Unknown')
+            car_model = activity.get('car_model', '')
+            owner = activity.get('owner_name', '')
+            mileage = activity.get('Mileage')
+            notes = activity.get('Notes', '')
+            
+            description = f"Service completed for {plate}"
+            if car_model:
+                description += f" ({car_model})"
+            if owner:
+                description += f" - Owner: {owner}"
+            if mileage:
+                description += f" - Mileage: {mileage:,} km"
+            if notes and notes.strip() and notes.strip().lower() != 'initial car registration':
+                description += f" - Notes: {notes}"
+            
+            # Determine icon based on notes/content
+            icon = "🛠️"  # Default service icon
+            if "oil" in notes.lower():
+                icon = "⛽"
+            elif "tire" in notes.lower():
+                icon = "🌀"
+            elif "brake" in notes.lower():
+                icon = "🛑"
+            
             formatted_activities.append({
                 "type": "service",
-                "title": f"Serviced {activity.get('plate')}",
-                "description": activity.get('description') or f"Service - {activity.get('mileage') or 'N/A'} km",
-                "timestamp": timestamp
+                "title": "Service Completed",
+                "description": description,
+                "timestamp": timestamp_str,
+                "plate": plate,
+                "owner": owner,
+                "mileage": mileage,
+                "icon": icon,
+                "id": activity.get('History_ID')
             })
+        
+        # If no service history, get some appointments as fallback
+        if len(formatted_activities) < 5:
+            logger.info("Few service records, fetching appointments as well")
+            cursor.execute('''
+                SELECT 
+                    a.Appointment_ID,
+                    a.Date as appointment_date,
+                    a.Time as appointment_time,
+                    a.Car_plate as plate,
+                    a.Notes,
+                    c.Model as car_model,
+                    o.Owner_Name as owner_name
+                FROM appointment a
+                LEFT JOIN car c ON a.Car_plate = c.Car_plate
+                LEFT JOIN owner o ON c.Owner_ID = o.Owner_ID
+                WHERE a.Date >= CURDATE()
+                ORDER BY a.Date, a.Time
+                LIMIT 5
+            ''')
+            
+            appointments = cursor.fetchall()
+            
+            for appointment in appointments:
+                date = appointment.get('appointment_date')
+                time = appointment.get('appointment_time')
+                
+                # Format timestamp
+                timestamp_str = ""
+                if date:
+                    if hasattr(date, 'isoformat'):
+                        timestamp_str = date.isoformat()
+                    else:
+                        timestamp_str = str(date)
+                
+                plate = appointment.get('plate', 'Unknown')
+                car_model = appointment.get('car_model', '')
+                owner = appointment.get('owner_name', '')
+                
+                # Format time if available
+                time_str = ""
+                if time:
+                    if isinstance(time, timedelta):
+                        total_seconds = int(time.total_seconds())
+                        hours = total_seconds // 3600
+                        minutes = (total_seconds % 3600) // 60
+                        time_str = f"{hours:02d}:{minutes:02d}"
+                    else:
+                        time_str = str(time)
+                
+                description = f"Appointment scheduled for {plate}"
+                if car_model:
+                    description += f" ({car_model})"
+                if owner:
+                    description += f" - Owner: {owner}"
+                if time_str:
+                    description += f" at {time_str}"
+                
+                formatted_activities.append({
+                    "type": "appointment",
+                    "title": "Upcoming Appointment",
+                    "description": description,
+                    "timestamp": timestamp_str,
+                    "plate": plate,
+                    "owner": owner,
+                    "icon": "📅",
+                    "id": appointment.get('Appointment_ID')
+                })
+        
+        # Sort all activities by timestamp (most recent first)
+        formatted_activities.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        # Limit to requested number
+        formatted_activities = formatted_activities[:limit]
+        
+        logger.info("Returning %d formatted activities", len(formatted_activities))
+        
+        # If still no activities, add a helpful placeholder
+        if not formatted_activities:
+            logger.info("No activities found, adding placeholder")
+            formatted_activities.append({
+                "type": "info",
+                "title": "Welcome to the System!",
+                "description": "No activities yet. Start by adding a car or completing a service.",
+                "timestamp": datetime.now().isoformat(),
+                "icon": "👋",
+                "is_placeholder": True
+            })
+        
+        return jsonify({
+            "success": True,
+            "data": formatted_activities,
+            "total": len(formatted_activities),
+            "message": f"Found {len(formatted_activities)} activities"
+        })
 
-        logger.info("Returning %d activities (limit=%d, offset=%d)", len(formatted_activities), limit, offset)
-        return jsonify({"success": True, "data": formatted_activities})
-
-    except Error:
-        logger.exception("Database error while loading recent activities")
-        return jsonify({"success": False, "message": "Database error"}), 500
-    except Exception:
-        logger.exception("Unhandled error while loading recent activities")
-        return jsonify({"success": False, "message": "Internal server error"}), 500
+    except Error as db_err:
+        logger.exception("Database error while loading recent activities: %s", str(db_err))
+        # Return empty data instead of error for better UX
+        return jsonify({
+            "success": True,
+            "data": [{
+                "type": "error",
+                "title": "Database Connection Issue",
+                "description": "Temporary issue loading activities. Please try again.",
+                "timestamp": datetime.now().isoformat(),
+                "icon": "⚠️",
+                "is_error": True
+            }],
+            "total": 1,
+            "message": "Database connection issue"
+        })
+        
+    except Exception as e:
+        logger.exception("Unhandled error in recent activities: %s", str(e))
+        # Return graceful error response
+        return jsonify({
+            "success": False,
+            "message": f"Error loading activities: {str(e)}",
+            "error": str(e)
+        }), 500
+        
     finally:
         _safe_close(cursor, conn)
 
@@ -493,7 +662,7 @@ def detect_plate():
 @mechanic_bp.route("/api/add-car", methods=["POST"])
 @mechanic_login_required
 def add_car():
-    """Add new car to database - WITH COMPLETE DUPLICATE CHECKS"""
+    """Add new car to database - WITH COMPLETE DUPLICATE CHECKS - NO SERVICE HISTORY CREATION"""
     logger.info("Adding new car to database")
     
     data = request.get_json()
@@ -508,7 +677,7 @@ def add_car():
     next_oil_change = data.get('next_oil_change')  # Can be empty
     owner_type = data.get('owner_type')
     phone_number = (data.get('phone_number') or data.get('PhoneNUMB') or data.get('phone') or '').strip()
-    current_mileage = data.get('current_mileage')
+    current_mileage = data.get('current_mileage')  # Still collect but don't create service history
     last_service_date = data.get('last_service_date')
     service_notes = data.get('service_notes', 'Initial car registration')
     
@@ -697,31 +866,37 @@ def add_car():
             VALUES (%s, %s, %s, %s, %s, %s)
         """, (car_plate, model, year, vin, next_oil_change, owner_id))
         
-        # Create initial service history if mileage provided
-        if current_mileage is not None and current_mileage != '':
-            # coerce mileage to int
-            try:
-                cm = int(current_mileage)
-            except Exception:
-                cm = None
-
-            if cm is not None:
-                # parse last_service_date if string
-                svc_date = None
-                if last_service_date:
-                    try:
-                        svc_date = datetime.strptime(last_service_date, '%Y-%m-%d').date()
-                    except Exception:
-                        svc_date = None
-                svc_date = svc_date or datetime.now().date()
-
-                cursor.execute("""
-                    INSERT INTO service_history (Service_Date, Mileage, Last_Oil_Change, Notes, Car_plate)
-                    VALUES (%s, %s, CURDATE(), %s, %s)
-                """, (svc_date, cm, service_notes, car_plate))
-                
-                history_id = cursor.lastrowid
-                logger.info("Created initial service history record #%s", history_id)
+        # ============================================
+        # CRITICAL CHANGE: DO NOT CREATE SERVICE HISTORY RECORD
+        # ============================================
+        # We're removing this block to prevent dashboard counting
+        # The initial mileage is still saved in the form data but not in service_history
+        
+        # if current_mileage is not None and current_mileage != '':
+        #     # coerce mileage to int
+        #     try:
+        #         cm = int(current_mileage)
+        #     except Exception:
+        #         cm = None
+        #
+        #     if cm is not None:
+        #         # parse last_service_date if string
+        #         svc_date = None
+        #         if last_service_date:
+        #             try:
+        #                 svc_date = datetime.strptime(last_service_date, '%Y-%m-%d').date()
+        #             except Exception:
+        #                 svc_date = None
+        #         svc_date = svc_date or datetime.now().date()
+        #
+        #         cursor.execute("""
+        #             INSERT INTO service_history (Service_Date, Mileage, Last_Oil_Change, Notes, Car_plate)
+        #             VALUES (%s, %s, CURDATE(), %s, %s)
+        #         """, (svc_date, cm, service_notes, car_plate))
+        #         
+        #         history_id = cursor.lastrowid
+        #         logger.info("Created initial service history record #%s", history_id)
+        # ============================================
         
         # COMMIT ONLY IF WE STARTED TRANSACTION
         try:
@@ -756,7 +931,8 @@ def add_car():
             "car_plate": car_plate,
             "owner_id": owner_id,
             "next_oil_change": str(next_oil_change),
-            "auto_calculated": auto_calculated
+            "auto_calculated": auto_calculated,
+            "note": "Initial mileage recorded but no service history created (dashboard will not count this)"
         })
         
     except Exception as e:
